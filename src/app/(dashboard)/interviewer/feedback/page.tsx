@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { submitFeedback } from '@/lib/actions/interviewer';
+import { FeedbackClient } from '@/components/interviewer/feedback-client';
 
 export default async function FeedbackPage() {
   const supabase = await createServer();
@@ -24,14 +25,18 @@ export default async function FeedbackPage() {
     .in('status', ['scheduled', 'completed'])
     .order('scheduled_at', { ascending: false });
 
-  const { data: feedbacks } = await supabase
+  const { data: existingFeedback } = await supabase
     .from('feedback')
+    .select('interview_id')
+    .eq('interviewer_id', profile.id);
+
+  const { data: interviewFeedback } = await supabase
+    .from('interview_feedback')
     .select('*')
     .eq('interviewer_id', profile.id);
 
-  const feedbackInterviewIds = new Set(feedbacks?.map(f => f.interview_id) ?? []);
+  const feedbackInterviewIds = new Set(existingFeedback?.map(f => f.interview_id) ?? []);
   const pendingInterviews = interviews?.filter(i => !feedbackInterviewIds.has(i.id)) ?? [];
-  const completedFeedbacks = feedbacks ?? [];
 
   return (
     <div className="space-y-6">
@@ -138,28 +143,11 @@ export default async function FeedbackPage() {
         </div>
       )}
 
-      {completedFeedbacks.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Submitted Feedback</h2>
-          <div className="grid gap-4 md:grid-cols-2">
-            {completedFeedbacks.map((fb) => (
-              <Card key={fb.id}>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">Rating: {fb.rating}/5</span>
-                    <Badge variant={fb.recommendation === 'hire' ? 'default' : 'secondary'}>
-                      {fb.recommendation}
-                    </Badge>
-                  </div>
-                  {fb.comments && (
-                    <p className="text-sm text-muted-foreground">{fb.comments}</p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
+      <FeedbackClient
+        feedbacks={interviewFeedback ?? []}
+        interviews={interviews ?? []}
+        profileId={profile.id}
+      />
     </div>
   );
 }

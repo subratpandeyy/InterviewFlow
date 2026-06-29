@@ -5,14 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { createPosition } from '@/lib/actions/recruiter';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { PositionsClient } from '@/components/admin/positions-client';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,37 +39,7 @@ export default async function AdminPositionsPage() {
               <CardTitle>All Positions ({positions?.length ?? 0})</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="rounded-lg border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Department</TableHead>
-                      <TableHead>Experience</TableHead>
-                      <TableHead>Created</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {positions?.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                          No positions yet. Create your first position.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    {positions?.map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-medium">{p.title}</TableCell>
-                        <TableCell>{p.department}</TableCell>
-                        <TableCell>{p.experience_required || '-'}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {new Date(p.created_at).toLocaleDateString()}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <PositionsClient positions={positions ?? []} />
             </CardContent>
           </Card>
         </div>

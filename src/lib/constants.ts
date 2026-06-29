@@ -17,9 +17,31 @@ export const INTERVIEW_TYPES = [
 export const INTERVIEW_STATUSES = [
   { value: 'pending', label: 'Pending' },
   { value: 'scheduled', label: 'Scheduled' },
+  { value: 'confirmed', label: 'Confirmed' },
   { value: 'completed', label: 'Completed' },
   { value: 'cancelled', label: 'Cancelled' },
   { value: 'no_show', label: 'No Show' },
+] as const;
+
+export const POSITION_STATUSES = [
+  { value: 'open', label: 'Open' },
+  { value: 'closed', label: 'Closed' },
+  { value: 'on-hold', label: 'On Hold' },
+  { value: 'filled', label: 'Filled' },
+] as const;
+
+export const EMPLOYMENT_TYPES = [
+  { value: 'full-time', label: 'Full Time' },
+  { value: 'part-time', label: 'Part Time' },
+  { value: 'contract', label: 'Contract' },
+  { value: 'internship', label: 'Internship' },
+] as const;
+
+export const INVITATION_STATUSES = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'accepted', label: 'Accepted' },
+  { value: 'expired', label: 'Expired' },
+  { value: 'cancelled', label: 'Cancelled' },
 ] as const;
 
 export const DASHBOARD_ROUTES: Record<string, { label: string; href: string }[]> = {
@@ -31,6 +53,7 @@ export const DASHBOARD_ROUTES: Record<string, { label: string; href: string }[]>
   recruiter: [
     { label: 'Dashboard', href: '/recruiter' },
     { label: 'Candidates', href: '/recruiter/candidates' },
+    { label: 'Positions', href: '/recruiter/positions' },
     { label: 'Scheduling', href: '/recruiter/scheduling' },
     { label: 'Interviews', href: '/recruiter/interviews' },
   ],

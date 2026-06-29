@@ -145,3 +145,235 @@ export async function createPosition(formData: FormData) {
   if (error) throw new Error(error.message);
   revalidatePath('/recruiter/scheduling');
 }
+
+export async function updateCandidate(formData: FormData) {
+  const supabase = await createServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Unauthorized' };
+
+  const { data: membership } = await supabase
+    .from('organization_members')
+    .select('organization_id, role')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!membership || membership.role !== 'recruiter') return { error: 'Unauthorized' };
+
+  const id = formData.get('id') as string;
+  if (!id) return { error: 'Candidate ID is required' };
+
+  const { error } = await supabase
+    .from('candidates')
+    .update({
+      full_name: formData.get('full_name') as string,
+      email: formData.get('email') as string,
+      phone: formData.get('phone') as string || null,
+      position_applied: formData.get('position_applied') as string || null,
+      resume_url: formData.get('resume_url') as string || null,
+      notes: formData.get('notes') as string || null,
+      status: formData.get('status') as string || null,
+    })
+    .eq('id', id);
+
+  if (error) return { error: error.message };
+  revalidatePath('/recruiter/candidates');
+  return { success: true };
+}
+
+export async function deleteCandidate(formData: FormData) {
+  const supabase = await createServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Unauthorized' };
+
+  const { data: membership } = await supabase
+    .from('organization_members')
+    .select('role')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!membership || membership.role !== 'recruiter') return { error: 'Unauthorized' };
+
+  const id = formData.get('id') as string;
+  if (!id) return { error: 'Candidate ID is required' };
+
+  const { error } = await supabase
+    .from('candidates')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id);
+
+  if (error) return { error: error.message };
+  revalidatePath('/recruiter/candidates');
+  revalidatePath('/recruiter');
+  return { success: true };
+}
+
+export async function updatePosition(formData: FormData) {
+  const supabase = await createServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Unauthorized' };
+
+  const { data: membership } = await supabase
+    .from('organization_members')
+    .select('organization_id, role')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!membership || (membership.role !== 'recruiter' && membership.role !== 'organization_admin'))
+    return { error: 'Unauthorized' };
+
+  const id = formData.get('id') as string;
+  if (!id) return { error: 'Position ID is required' };
+
+  const skillsRaw = formData.get('skills') as string || null;
+  const skills = skillsRaw ? skillsRaw.split(',').map(s => s.trim()).filter(Boolean) : null;
+
+  const { error } = await supabase
+    .from('positions')
+    .update({
+      title: formData.get('title') as string,
+      department: formData.get('department') as string,
+      experience_required: formData.get('experience_required') as string || null,
+      description: formData.get('description') as string || null,
+      employment_type: formData.get('employment_type') as string || null,
+      location: formData.get('location') as string || null,
+      skills,
+      status: formData.get('status') as string || null,
+    })
+    .eq('id', id);
+
+  if (error) return { error: error.message };
+  revalidatePath('/recruiter/positions');
+  return { success: true };
+}
+
+export async function deletePosition(formData: FormData) {
+  const supabase = await createServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Unauthorized' };
+
+  const { data: membership } = await supabase
+    .from('organization_members')
+    .select('role')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!membership || (membership.role !== 'recruiter' && membership.role !== 'organization_admin'))
+    return { error: 'Unauthorized' };
+
+  const id = formData.get('id') as string;
+  if (!id) return { error: 'Position ID is required' };
+
+  const { data: activeInterviews, error: checkError } = await supabase
+    .from('interviews')
+    .select('id')
+    .eq('position_id', id)
+    .in('status', ['pending', 'scheduled', 'confirmed'])
+    .limit(1);
+
+  if (checkError) return { error: checkError.message };
+
+  if (activeInterviews && activeInterviews.length > 0) {
+    return { error: 'Cannot delete position with active interviews. Please close the position instead.' };
+  }
+
+  const { error } = await supabase
+    .from('positions')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id);
+
+  if (error) return { error: error.message };
+  revalidatePath('/recruiter/positions');
+  revalidatePath('/admin/positions');
+  return { success: true };
+}
+
+export async function updateInterview(formData: FormData) {
+  const supabase = await createServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Unauthorized' };
+
+  const { data: membership } = await supabase
+    .from('organization_members')
+    .select('role')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!membership || (membership.role !== 'recruiter' && membership.role !== 'organization_admin'))
+    return { error: 'Unauthorized' };
+
+  const id = formData.get('id') as string;
+  if (!id) return { error: 'Interview ID is required' };
+
+  const { error } = await supabase
+    .from('interviews')
+    .update({
+      scheduled_at: formData.get('scheduled_at') as string || null,
+      status: formData.get('status') as string || null,
+      notes: formData.get('notes') as string || null,
+      meeting_link: formData.get('meeting_link') as string || null,
+      meeting_provider: formData.get('meeting_provider') as string || null,
+    })
+    .eq('id', id);
+
+  if (error) return { error: error.message };
+  revalidatePath('/recruiter/interviews');
+  return { success: true };
+}
+
+export async function deleteInterview(formData: FormData) {
+  const supabase = await createServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Unauthorized' };
+
+  const { data: membership } = await supabase
+    .from('organization_members')
+    .select('role')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!membership || (membership.role !== 'recruiter' && membership.role !== 'organization_admin'))
+    return { error: 'Unauthorized' };
+
+  const id = formData.get('id') as string;
+  if (!id) return { error: 'Interview ID is required' };
+
+  const { error } = await supabase
+    .from('interviews')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id);
+
+  if (error) return { error: error.message };
+  revalidatePath('/recruiter/interviews');
+  return { success: true };
+}
+
+export async function bulkDeleteCandidates(formData: FormData) {
+  const supabase = await createServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Unauthorized' };
+
+  const { data: membership } = await supabase
+    .from('organization_members')
+    .select('role')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!membership || (membership.role !== 'recruiter' && membership.role !== 'organization_admin'))
+    return { error: 'Unauthorized' };
+
+  const idsRaw = formData.get('ids') as string;
+  if (!idsRaw) return { error: 'No candidate IDs provided' };
+
+  const ids = idsRaw.split(',').map(s => s.trim()).filter(Boolean);
+
+  if (ids.length === 0) return { error: 'No candidate IDs provided' };
+
+  const { error } = await supabase
+    .from('candidates')
+    .update({ deleted_at: new Date().toISOString() })
+    .in('id', ids);
+
+  if (error) return { error: error.message };
+  revalidatePath('/recruiter/candidates');
+  return { success: true };
+}

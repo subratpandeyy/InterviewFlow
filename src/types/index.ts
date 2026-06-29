@@ -36,6 +36,8 @@ export interface OrganizationMember {
   created_at: string;
 }
 
+export type InvitationStatus = 'pending' | 'accepted' | 'expired' | 'cancelled';
+
 export interface Invitation {
   id: string;
   organization_id: string;
@@ -44,6 +46,8 @@ export interface Invitation {
   token: string;
   expires_at: string;
   accepted_at?: string;
+  status: InvitationStatus;
+  revoked_at?: string;
   created_at: string;
 }
 
@@ -57,9 +61,14 @@ export interface Candidate {
   resume_url?: string;
   notes?: string;
   status: CandidateStatus;
+  recruiter_id?: string;
   created_at: string;
   updated_at: string;
+  deleted_at?: string;
 }
+
+export type PositionStatus = 'open' | 'closed' | 'on-hold' | 'filled';
+export type EmploymentType = 'full-time' | 'part-time' | 'contract' | 'internship';
 
 export interface Position {
   id: string;
@@ -68,8 +77,14 @@ export interface Position {
   department: string;
   experience_required?: string;
   description?: string;
+  employment_type?: EmploymentType;
+  location?: string;
+  skills?: string[];
+  status: PositionStatus;
+  created_by?: string;
   created_at: string;
   updated_at: string;
+  deleted_at?: string;
 }
 
 export interface AvailabilitySlot {
@@ -102,6 +117,7 @@ export interface Interview {
   booking_expires_at?: string;
   created_at: string;
   updated_at: string;
+  deleted_at?: string;
 }
 
 export interface Booking {
@@ -146,6 +162,21 @@ export interface InterviewMeeting {
   provider: MeetingProvider;
   meeting_url: string;
   created_at: string;
+}
+
+export interface InterviewFeedback {
+  id: string;
+  interview_id: string;
+  interviewer_id: string;
+  rating: number;
+  communication: number;
+  technical_skills: number;
+  problem_solving: number;
+  comments?: string;
+  recommendation: 'hire' | 'maybe' | 'reject';
+  is_finalized: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Notification {

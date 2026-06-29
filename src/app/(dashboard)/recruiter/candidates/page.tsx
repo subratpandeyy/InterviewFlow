@@ -1,17 +1,8 @@
 import Link from 'next/link';
 import { createServer } from '@/lib/supabase/server';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Search } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import { CandidatesClient } from '@/components/recruiter/candidates-client';
 
 const statusColors: Record<string, string> = {
   applied: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
@@ -63,60 +54,7 @@ export default async function CandidatesPage({
         </Link>
       </div>
 
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <form>
-            <Input
-              name="q"
-              placeholder="Search candidates..."
-              defaultValue={q}
-              className="pl-9"
-            />
-          </form>
-        </div>
-      </div>
-
-      <div className="rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Position</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Created</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {candidates?.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                  No candidates yet. Add your first candidate.
-                </TableCell>
-              </TableRow>
-            )}
-            {candidates?.map((candidate) => (
-              <TableRow key={candidate.id}>
-                <TableCell className="font-medium">{candidate.full_name}</TableCell>
-                <TableCell>{candidate.email}</TableCell>
-                <TableCell>{candidate.position_applied || '-'}</TableCell>
-                <TableCell>
-                  <Badge
-                    className={statusColors[candidate.status] || ''}
-                    variant="outline"
-                  >
-                    {candidate.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {new Date(candidate.created_at).toLocaleDateString()}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <CandidatesClient candidates={candidates ?? []} statusColors={statusColors} />
     </div>
   );
 }
