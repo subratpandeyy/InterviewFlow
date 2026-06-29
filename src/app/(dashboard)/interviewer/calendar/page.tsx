@@ -83,9 +83,9 @@ export default async function CalendarPage() {
         );
         isHealthy = health.healthy;
         healthMessage = health.message;
-      } catch {
+      } catch (e) {
         isHealthy = false;
-        healthMessage = 'Failed to fetch calendar data';
+        healthMessage = `Calendar error: ${e instanceof Error ? e.message : String(e)}`;
       }
     } else {
       isHealthy = false;
