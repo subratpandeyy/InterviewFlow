@@ -77,6 +77,8 @@ export async function getFreeBusySlots(
 ): Promise<FreeBusySlot[]> {
   const calendar = getCalendarApi(accessToken, refreshToken);
 
+  const calendarId = calendarEmail || 'primary';
+
   const now = new Date();
   const endDate = new Date(now);
   endDate.setDate(endDate.getDate() + lookAheadDays);
@@ -85,11 +87,11 @@ export async function getFreeBusySlots(
     requestBody: {
       timeMin: now.toISOString(),
       timeMax: endDate.toISOString(),
-      items: [{ id: calendarEmail }],
+      items: [{ id: calendarId }],
     },
   });
 
-  const busyPeriods = data.calendars?.[calendarEmail]?.busy ?? [];
+  const busyPeriods = data.calendars?.[calendarId]?.busy ?? [];
 
   const allSlots = getWorkingHours();
   const availableSlots: FreeBusySlot[] = [];
@@ -127,9 +129,10 @@ export async function createCalendarEvent(
   },
 ): Promise<CalendarEvent> {
   const calendar = getCalendarApi(accessToken, refreshToken);
+  const calendarId = calendarEmail || 'primary';
 
   const { data } = await calendar.events.insert({
-    calendarId: calendarEmail,
+    calendarId,
     conferenceDataVersion: 1,
     requestBody: {
       summary: params.summary,
@@ -155,7 +158,7 @@ export async function createCalendarEvent(
   return {
     id: data.id ?? undefined,
     hangoutLink: data.hangoutLink ?? undefined,
-    calendarId: calendarEmail,
+    calendarId,
     summary: params.summary,
   };
 }
@@ -229,8 +232,10 @@ export async function listUpcomingEvents(
 ): Promise<CalendarEvent[]> {
   const calendar = getCalendarApi(accessToken, refreshToken);
 
+  const calendarId = calendarEmail || 'primary';
+
   const { data } = await calendar.events.list({
-    calendarId: calendarEmail,
+    calendarId,
     timeMin: new Date().toISOString(),
     maxResults,
     singleEvents: true,
@@ -253,17 +258,23 @@ export async function checkCalendarHealth(
 ): Promise<{ healthy: boolean; message: string }> {
   try {
     const calendar = getCalendarApi(accessToken, refreshToken);
-    await calendar.calendarList.get({ calendarId: calendarEmail });
+    const calendarId = calendarEmail || 'primary';
+    await calendar.events.list({
+      calendarId,
+      maxResults: 1,
+      timeMin: new Date().toISOString(),
+    });
     return { healthy: true, message: 'Calendar is accessible' };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    if (message.includes('404') || message.includes('not found')) {
+    const lower = message.toLowerCase();
+    if (lower.includes('not found') || lower.includes('404')) {
       return { healthy: false, message: 'Calendar not found. Try reconnecting.' };
     }
-    if (message.includes('403') || message.includes('Forbidden') || message.includes('expired')) {
+    if (lower.includes('forbidden') || lower.includes('403') || lower.includes('expired') || lower.includes('invalid grant')) {
       return { healthy: false, message: 'Access revoked or token expired. Reconnect your calendar.' };
     }
-    if (message.includes('429') || message.includes('rate')) {
+    if (lower.includes('429') || lower.includes('rate')) {
       return { healthy: true, message: 'Rate limited. Will retry automatically.' };
     }
     return { healthy: false, message: `Calendar error: ${message}` };
