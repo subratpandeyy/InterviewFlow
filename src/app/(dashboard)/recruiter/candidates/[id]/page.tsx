@@ -66,7 +66,7 @@ export default async function EditCandidatePage({
     : { data: [] };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center gap-4">
         <Link
           href="/recruiter/candidates"
@@ -74,7 +74,10 @@ export default async function EditCandidatePage({
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <h1 className="text-3xl font-bold">Edit Candidate</h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Edit Candidate</h1>
+          <p className="text-sm text-muted-foreground mt-1">Update the candidate&apos;s details</p>
+        </div>
       </div>
 
       <Card className="max-w-2xl">
@@ -85,9 +88,9 @@ export default async function EditCandidatePage({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={async (formData) => { await updateCandidate(formData); }} className="space-y-4">
+          <form action={async (formData) => { await updateCandidate(formData); }} className="space-y-6">
             <input type="hidden" name="id" value={candidate.id} />
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="full_name">Full Name</Label>
                 <Input
@@ -140,7 +143,7 @@ export default async function EditCandidatePage({
                   id="status"
                   name="status"
                   defaultValue={candidate.status}
-                  className="flex h-8 w-full items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
+                  className="flex h-12 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {CANDIDATE_STATUSES.map((s) => (
                     <option key={s.value} value={s.value}>
@@ -182,10 +185,10 @@ export default async function EditCandidatePage({
           </CardHeader>
           <CardContent className="space-y-4">
             {(feedbacks ?? []).map((fb: any) => (
-              <div key={fb.id} className="rounded-lg border p-4 space-y-3">
+              <div key={fb.id} className="rounded-lg border border-border bg-card p-4 space-y-3">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-medium">{fb.interviewer?.full_name}</p>
+                    <p className="font-medium text-foreground">{fb.interviewer?.full_name}</p>
                     <p className="text-sm text-muted-foreground">{fb.interviewer?.email}</p>
                   </div>
                   <div className="text-right">
@@ -203,13 +206,13 @@ export default async function EditCandidatePage({
                   )}
                 </div>
                 <div className="flex flex-wrap gap-3 text-sm">
-                  <span>Rating: <strong>{fb.rating}/5</strong></span>
-                  <span>Communication: <strong>{fb.communication}/5</strong></span>
-                  <span>Technical: <strong>{fb.technical_skills}/5</strong></span>
-                  <span>Problem Solving: <strong>{fb.problem_solving}/5</strong></span>
+                  <span className="text-muted-foreground">Rating: <strong className="text-foreground">{fb.rating}/5</strong></span>
+                  <span className="text-muted-foreground">Communication: <strong className="text-foreground">{fb.communication}/5</strong></span>
+                  <span className="text-muted-foreground">Technical: <strong className="text-foreground">{fb.technical_skills}/5</strong></span>
+                  <span className="text-muted-foreground">Problem Solving: <strong className="text-foreground">{fb.problem_solving}/5</strong></span>
                 </div>
                 {fb.comments && (
-                  <p className="text-sm text-muted-foreground border-t pt-2">{fb.comments}</p>
+                  <p className="text-sm text-muted-foreground border-t border-border pt-2">{fb.comments}</p>
                 )}
               </div>
             ))}

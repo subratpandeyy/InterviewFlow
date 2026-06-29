@@ -9,7 +9,7 @@ import { ArrowLeft } from 'lucide-react';
 
 export default function NewCandidatePage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center gap-4">
         <Link
           href="/recruiter/candidates"
@@ -17,7 +17,10 @@ export default function NewCandidatePage() {
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <h1 className="text-3xl font-bold">Add Candidate</h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Add Candidate</h1>
+          <p className="text-sm text-muted-foreground mt-1">Enter the candidate&apos;s details to add them to the pipeline</p>
+        </div>
       </div>
 
       <Card className="max-w-2xl">
@@ -28,8 +31,8 @@ export default function NewCandidatePage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={createCandidate} className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
+          <form action={createCandidate} className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="full_name">Full Name</Label>
                 <Input id="full_name" name="full_name" required />

@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Briefcase } from 'lucide-react';
 import { createPosition, updatePosition, deletePosition } from '@/lib/actions/recruiter';
 import { POSITION_STATUSES, EMPLOYMENT_TYPES } from '@/lib/constants';
 import type { Position } from '@/types';
@@ -12,6 +12,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
 import {
   Card,
   CardContent,
@@ -28,11 +37,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-const statusColors: Record<string, string> = {
-  open: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  closed: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
-  'on-hold': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  filled: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+const statusVariant: Record<string, 'default' | 'secondary' | 'success' | 'warning' | 'outline' | 'destructive'> = {
+  open: 'success',
+  closed: 'outline',
+  'on-hold': 'warning',
+  filled: 'default',
 };
 
 const defaultEditData = {
@@ -139,38 +148,34 @@ export default function PositionsClient({ positions }: { positions: Position[] }
   }
 
   return (
-    <div className="space-y-6">
-      {/* Delete Confirmation Modal */}
-      {showConfirmDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <Card className="w-full max-w-sm">
-            <CardHeader>
-              <CardTitle>Delete Position</CardTitle>
-              <CardDescription>
-                Are you sure you want to delete this position? This action cannot be undone.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowConfirmDialog(null)}
-                disabled={isDeletePending}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={isDeletePending}
-              >
-                {isDeletePending ? 'Deleting...' : 'Delete'}
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">Positions</h1>
+        <p className="text-sm text-muted-foreground mt-1">Manage job openings and positions</p>
+      </div>
 
-      <h1 className="text-3xl font-bold">Positions</h1>
+      <Dialog open={!!showConfirmDialog} onOpenChange={(open) => { if (!open) setShowConfirmDialog(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Position</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this position? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose render={<Button type="button" variant="outline" />}>
+              Cancel
+            </DialogClose>
+            <Button
+              variant="destructive"
+              disabled={isDeletePending}
+              onClick={handleDelete}
+            >
+              {isDeletePending ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="flex items-center gap-2">
         <div className="relative flex-1 max-w-sm">
@@ -191,63 +196,61 @@ export default function PositionsClient({ positions }: { positions: Position[] }
               <CardTitle>All Positions ({filtered.length})</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="rounded-lg border">
-                <Table>
-                  <TableHeader>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.length === 0 && (
                     <TableRow>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Department</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableCell colSpan={6} className="text-center py-12">
+                        <div className="flex flex-col items-center justify-center text-muted-foreground/40">
+                          <Briefcase className="h-8 w-8 mb-2" />
+                          <p className="text-sm text-muted-foreground">No positions found.</p>
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filtered.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                          No positions found.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    {filtered.map((position) => (
-                      <TableRow key={position.id}>
-                        <TableCell className="font-medium">{position.title}</TableCell>
-                        <TableCell>{position.department}</TableCell>
-                        <TableCell>{position.employment_type || '-'}</TableCell>
-                        <TableCell>{position.location || '-'}</TableCell>
-                        <TableCell>
-                          <Badge
-                            className={statusColors[position.status] || ''}
-                            variant="outline"
+                  )}
+                  {filtered.map((position) => (
+                    <TableRow key={position.id}>
+                      <TableCell className="font-medium">{position.title}</TableCell>
+                      <TableCell>{position.department}</TableCell>
+                      <TableCell>{position.employment_type || '-'}</TableCell>
+                      <TableCell>{position.location || '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant={statusVariant[position.status] || 'outline'}>
+                          {POSITION_STATUSES.find((s) => s.value === position.status)?.label || position.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(position)}
                           >
-                            {POSITION_STATUSES.find((s) => s.value === position.status)?.label || position.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEdit(position)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setShowConfirmDialog(position.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setShowConfirmDialog(position.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </div>
@@ -260,59 +263,75 @@ export default function PositionsClient({ positions }: { positions: Position[] }
                 <CardDescription>Update the position details</CardDescription>
               </CardHeader>
               <CardContent>
-                <form action={handleUpdate} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-title">Title</Label>
-                    <Input
-                      id="edit-title"
-                      name="title"
-                      required
-                      value={editData.title}
-                      onChange={(e) => setEditData({ ...editData, title: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-department">Department</Label>
-                    <Input
-                      id="edit-department"
-                      name="department"
-                      required
-                      value={editData.department}
-                      onChange={(e) => setEditData({ ...editData, department: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-employment_type">Employment Type</Label>
-                    <select
-                      id="edit-employment_type"
-                      name="employment_type"
-                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                      value={editData.employment_type}
-                      onChange={(e) => setEditData({ ...editData, employment_type: e.target.value })}
-                    >
-                      <option value="">Select type</option>
-                      {EMPLOYMENT_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>{t.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-location">Location</Label>
-                    <Input
-                      id="edit-location"
-                      name="location"
-                      value={editData.location}
-                      onChange={(e) => setEditData({ ...editData, location: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-experience_required">Experience Required</Label>
-                    <Input
-                      id="edit-experience_required"
-                      name="experience_required"
-                      value={editData.experience_required}
-                      onChange={(e) => setEditData({ ...editData, experience_required: e.target.value })}
-                    />
+                <form action={handleUpdate} className="space-y-6">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-title">Title</Label>
+                      <Input
+                        id="edit-title"
+                        name="title"
+                        required
+                        value={editData.title}
+                        onChange={(e) => setEditData({ ...editData, title: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-department">Department</Label>
+                      <Input
+                        id="edit-department"
+                        name="department"
+                        required
+                        value={editData.department}
+                        onChange={(e) => setEditData({ ...editData, department: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-employment_type">Employment Type</Label>
+                      <select
+                        id="edit-employment_type"
+                        name="employment_type"
+                        className="flex h-12 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={editData.employment_type}
+                        onChange={(e) => setEditData({ ...editData, employment_type: e.target.value })}
+                      >
+                        <option value="">Select type</option>
+                        {EMPLOYMENT_TYPES.map((t) => (
+                          <option key={t.value} value={t.value}>{t.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-location">Location</Label>
+                      <Input
+                        id="edit-location"
+                        name="location"
+                        value={editData.location}
+                        onChange={(e) => setEditData({ ...editData, location: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-experience_required">Experience Required</Label>
+                      <Input
+                        id="edit-experience_required"
+                        name="experience_required"
+                        value={editData.experience_required}
+                        onChange={(e) => setEditData({ ...editData, experience_required: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-status">Status</Label>
+                      <select
+                        id="edit-status"
+                        name="status"
+                        className="flex h-12 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={editData.status}
+                        onChange={(e) => setEditData({ ...editData, status: e.target.value })}
+                      >
+                        {POSITION_STATUSES.map((s) => (
+                          <option key={s.value} value={s.value}>{s.label}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="edit-description">Description</Label>
@@ -333,20 +352,6 @@ export default function PositionsClient({ positions }: { positions: Position[] }
                       onChange={(e) => setEditData({ ...editData, skills: e.target.value })}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-status">Status</Label>
-                    <select
-                      id="edit-status"
-                      name="status"
-                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                      value={editData.status}
-                      onChange={(e) => setEditData({ ...editData, status: e.target.value })}
-                    >
-                      {POSITION_STATUSES.map((s) => (
-                        <option key={s.value} value={s.value}>{s.label}</option>
-                      ))}
-                    </select>
-                  </div>
                   <div className="flex gap-2">
                     <Button type="submit" className="flex-1" disabled={isUpdatePending}>
                       {isUpdatePending ? 'Saving...' : 'Save Changes'}
@@ -365,63 +370,65 @@ export default function PositionsClient({ positions }: { positions: Position[] }
                 <CardDescription>Add a new job opening</CardDescription>
               </CardHeader>
               <CardContent>
-                <form action={handleCreate} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Title</Label>
-                    <Input
-                      id="title"
-                      name="title"
-                      required
-                      placeholder="e.g. Senior Frontend Developer"
-                      value={createData.title}
-                      onChange={(e) => setCreateData({ ...createData, title: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="department">Department</Label>
-                    <Input
-                      id="department"
-                      name="department"
-                      required
-                      placeholder="e.g. Engineering"
-                      value={createData.department}
-                      onChange={(e) => setCreateData({ ...createData, department: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-employment_type">Employment Type</Label>
-                    <select
-                      id="create-employment_type"
-                      name="employment_type"
-                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                      value={createData.employment_type}
-                      onChange={(e) => setCreateData({ ...createData, employment_type: e.target.value })}
-                    >
-                      <option value="">Select type</option>
-                      {EMPLOYMENT_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>{t.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-location">Location</Label>
-                    <Input
-                      id="create-location"
-                      name="location"
-                      placeholder="e.g. San Francisco, CA"
-                      value={createData.location}
-                      onChange={(e) => setCreateData({ ...createData, location: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-experience_required">Experience Required</Label>
-                    <Input
-                      id="create-experience_required"
-                      name="experience_required"
-                      placeholder="e.g. 3-5 years"
-                      value={createData.experience_required}
-                      onChange={(e) => setCreateData({ ...createData, experience_required: e.target.value })}
-                    />
+                <form action={handleCreate} className="space-y-6">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="title">Title</Label>
+                      <Input
+                        id="title"
+                        name="title"
+                        required
+                        placeholder="e.g. Senior Frontend Developer"
+                        value={createData.title}
+                        onChange={(e) => setCreateData({ ...createData, title: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="department">Department</Label>
+                      <Input
+                        id="department"
+                        name="department"
+                        required
+                        placeholder="e.g. Engineering"
+                        value={createData.department}
+                        onChange={(e) => setCreateData({ ...createData, department: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="create-employment_type">Employment Type</Label>
+                      <select
+                        id="create-employment_type"
+                        name="employment_type"
+                        className="flex h-12 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={createData.employment_type}
+                        onChange={(e) => setCreateData({ ...createData, employment_type: e.target.value })}
+                      >
+                        <option value="">Select type</option>
+                        {EMPLOYMENT_TYPES.map((t) => (
+                          <option key={t.value} value={t.value}>{t.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="create-location">Location</Label>
+                      <Input
+                        id="create-location"
+                        name="location"
+                        placeholder="e.g. San Francisco, CA"
+                        value={createData.location}
+                        onChange={(e) => setCreateData({ ...createData, location: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="create-experience_required">Experience Required</Label>
+                      <Input
+                        id="create-experience_required"
+                        name="experience_required"
+                        placeholder="e.g. 3-5 years"
+                        value={createData.experience_required}
+                        onChange={(e) => setCreateData({ ...createData, experience_required: e.target.value })}
+                      />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="create-description">Description</Label>

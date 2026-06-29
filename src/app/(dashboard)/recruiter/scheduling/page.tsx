@@ -46,22 +46,23 @@ export default async function SchedulingPage() {
     .is('deleted_at', null);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Scheduling</h1>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">Scheduling</h1>
+        <p className="text-sm text-muted-foreground mt-1">Schedule and manage interviews</p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Create New Interview</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           <p className="text-sm text-muted-foreground">
             Select a candidate, position, and interviewer to create an interview schedule.
           </p>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Candidate</label>
+              <label className="text-sm font-medium text-foreground">Candidate</label>
               <div className="flex flex-wrap gap-2">
                 {candidates?.slice(0, 5).map((c) => (
                   <Badge key={c.id} variant="secondary" className="cursor-pointer">
@@ -74,7 +75,7 @@ export default async function SchedulingPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Interviewer</label>
+              <label className="text-sm font-medium text-foreground">Interviewer</label>
               <div className="flex flex-wrap gap-2">
                 {interviewers?.map((i) => (
                   <Badge key={i.id} variant="secondary" className="cursor-pointer">
@@ -84,7 +85,7 @@ export default async function SchedulingPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Position</label>
+              <label className="text-sm font-medium text-foreground">Position</label>
               <div className="flex flex-wrap gap-2">
                 {positions?.map((p) => (
                   <Badge key={p.id} variant="secondary" className="cursor-pointer">

@@ -34,24 +34,27 @@ export default async function FeedbackPage() {
   const pendingInterviews = interviews?.filter(i => !feedbackInterviewIds.has(i.id)) ?? [];
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Feedback</h1>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">Feedback</h1>
+        <p className="text-sm text-muted-foreground mt-1">Submit and manage your interview feedback</p>
+      </div>
 
       {pendingInterviews.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Pending Feedback</h2>
+          <h2 className="text-xl font-semibold text-foreground">Pending Feedback</h2>
           {pendingInterviews.map((interview) => (
             <Card key={interview.id}>
               <CardHeader>
-                <CardTitle className="text-base">
+                <CardTitle>
                   {interview.candidate?.full_name} - {interview.position?.title}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <form action={submitFeedback} className="space-y-4">
+                <form action={submitFeedback} className="space-y-6">
                   <input type="hidden" name="interview_id" value={interview.id} />
 
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor={`rating-${interview.id}`}>Overall Rating</Label>
                       <select

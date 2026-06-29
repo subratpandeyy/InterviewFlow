@@ -10,7 +10,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Users, Calendar, Clock, Briefcase } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { buttonVariants } from '@/components/ui/button';
+import { Users, Calendar, Clock, Briefcase, Inbox, CalendarX } from 'lucide-react';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -96,17 +98,20 @@ export default async function RecruiterDashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Recruiter Dashboard</h1>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">Recruiter Dashboard</h1>
+        <p className="text-sm text-muted-foreground mt-1">Overview of your recruitment pipeline</p>
+      </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
               <stat.icon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <div className="text-3xl font-bold">{stat.value}</div>
             </CardContent>
           </Card>
@@ -118,15 +123,22 @@ export default async function RecruiterDashboard() {
           <CardHeader>
             <CardTitle>Recent Candidates ({candidates.length})</CardTitle>
           </CardHeader>
-          <CardContent>
-            <Link href="/recruiter/candidates" className="text-sm text-primary hover:underline mb-4 block">
-              View all candidates →
-            </Link>
+          <CardContent className="pt-0">
+            {candidates.length > 0 && (
+              <div className="mb-4">
+                <Link href="/recruiter/candidates" className={cn(buttonVariants({ variant: 'link' }), 'h-auto px-0 text-sm')}>
+                  View all candidates →
+                </Link>
+              </div>
+            )}
             {candidates.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4">No candidates yet.</p>
+              <div className="flex flex-col items-center justify-center py-12">
+                <Inbox className="h-10 w-10 text-muted-foreground mb-3" />
+                <p className="text-sm text-muted-foreground">No candidates yet.</p>
+              </div>
             ) : (
-              <Table>
-                <TableHeader>
+              <Table className="scrollbar-thin">
+                <TableHeader className="sticky top-0 z-10 bg-sidebar">
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Status</TableHead>
@@ -135,7 +147,7 @@ export default async function RecruiterDashboard() {
                 </TableHeader>
                 <TableBody>
                   {candidates.map((c) => (
-                    <TableRow key={c.id}>
+                    <TableRow key={c.id} className="even:bg-muted/30">
                       <TableCell className="font-medium">{c.full_name}</TableCell>
                       <TableCell><Badge variant="outline">{c.status}</Badge></TableCell>
                       <TableCell className="text-muted-foreground">{new Date(c.created_at).toLocaleDateString()}</TableCell>
@@ -151,15 +163,22 @@ export default async function RecruiterDashboard() {
           <CardHeader>
             <CardTitle>Upcoming Interviews ({upcomingInterviews.length})</CardTitle>
           </CardHeader>
-          <CardContent>
-            <Link href="/recruiter/interviews" className="text-sm text-primary hover:underline mb-4 block">
-              View all interviews →
-            </Link>
+          <CardContent className="pt-0">
+            {upcomingInterviews.length > 0 && (
+              <div className="mb-4">
+                <Link href="/recruiter/interviews" className={cn(buttonVariants({ variant: 'link' }), 'h-auto px-0 text-sm')}>
+                  View all interviews →
+                </Link>
+              </div>
+            )}
             {upcomingInterviews.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4">No upcoming interviews.</p>
+              <div className="flex flex-col items-center justify-center py-12">
+                <CalendarX className="h-10 w-10 text-muted-foreground mb-3" />
+                <p className="text-sm text-muted-foreground">No upcoming interviews.</p>
+              </div>
             ) : (
-              <Table>
-                <TableHeader>
+              <Table className="scrollbar-thin">
+                <TableHeader className="sticky top-0 z-10 bg-sidebar">
                   <TableRow>
                     <TableHead>Candidate</TableHead>
                     <TableHead>Type</TableHead>
@@ -168,7 +187,7 @@ export default async function RecruiterDashboard() {
                 </TableHeader>
                 <TableBody>
                   {upcomingInterviews.map((i) => (
-                    <TableRow key={i.id}>
+                    <TableRow key={i.id} className="even:bg-muted/30">
                       <TableCell className="font-medium">{i.candidate?.full_name}</TableCell>
                       <TableCell>{interviewTypeLabels[i.interview_type] || i.interview_type}</TableCell>
                       <TableCell className="text-muted-foreground">
@@ -188,9 +207,9 @@ export default async function RecruiterDashboard() {
           <CardHeader>
             <CardTitle>Interviewer Availability (Next 30 Days)</CardTitle>
           </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
+          <CardContent className="pt-0">
+            <Table className="scrollbar-thin">
+              <TableHeader className="sticky top-0 z-10 bg-sidebar">
                 <TableRow>
                   <TableHead>Interviewer</TableHead>
                   <TableHead>Date</TableHead>
@@ -206,7 +225,7 @@ export default async function RecruiterDashboard() {
                   const diff = (parseInt(end.split(':')[0]) * 60 + parseInt(end.split(':')[1])) -
                                (parseInt(start.split(':')[0]) * 60 + parseInt(start.split(':')[1]));
                   return (
-                    <TableRow key={s.id}>
+                    <TableRow key={s.id} className="even:bg-muted/30">
                       <TableCell className="font-medium">{prof?.full_name || 'Unknown'}</TableCell>
                       <TableCell>{new Date(s.date + 'T12:00:00').toLocaleDateString()}</TableCell>
                       <TableCell>{formatTime(start)} - {formatTime(end)}</TableCell>

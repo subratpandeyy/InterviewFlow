@@ -3,10 +3,11 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { Pencil, Trash2, Search } from 'lucide-react';
+import { Pencil, Trash2, Search, Users } from 'lucide-react';
 import { updateCandidate, deleteCandidate, updateCandidateStatus } from '@/lib/actions/recruiter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -28,12 +29,20 @@ import type { Candidate } from '@/types';
 
 interface CandidatesClientProps {
   candidates: Candidate[];
-  statusColors: Record<string, string>;
 }
 
 const STATUSES = ['applied', 'screening', 'scheduled', 'interviewed', 'selected', 'rejected'] as const;
 
-export function CandidatesClient({ candidates, statusColors }: CandidatesClientProps) {
+const statusStyle: Record<string, string> = {
+  applied: 'bg-accent/10 text-accent',
+  screening: 'bg-amber-500/10 text-amber-400',
+  scheduled: 'bg-accent/10 text-accent',
+  interviewed: 'bg-amber-500/10 text-amber-400',
+  selected: 'bg-emerald-500/10 text-emerald-400',
+  rejected: 'bg-destructive/10 text-destructive-foreground',
+};
+
+export function CandidatesClient({ candidates }: CandidatesClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [search, setSearch] = useState('');
@@ -118,73 +127,74 @@ export function CandidatesClient({ candidates, statusColors }: CandidatesClientP
         </div>
       </div>
 
-      <div className="rounded-lg border">
-        <Table>
-          <TableHeader>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Position</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Created</TableHead>
+            <TableHead className="w-[120px]">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filtered.length === 0 && (
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Position</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="w-[120px]">Actions</TableHead>
+              <TableCell colSpan={6} className="text-center py-12">
+                <div className="flex flex-col items-center justify-center text-muted-foreground/40">
+                  <Users className="h-8 w-8 mb-2" />
+                  <p className="text-sm text-muted-foreground">No candidates yet. Add your first candidate.</p>
+                </div>
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                  No candidates yet. Add your first candidate.
-                </TableCell>
-              </TableRow>
-            )}
-            {filtered.map((candidate) => (
-              <TableRow key={candidate.id}>
-                <TableCell className="font-medium">{candidate.full_name}</TableCell>
-                <TableCell>{candidate.email}</TableCell>
-                <TableCell>{candidate.position_applied || '-'}</TableCell>
-                <TableCell>
-                  <select
-                    value={candidate.status}
-                    onChange={(e) => handleStatusChange(candidate.id, e.target.value)}
-                    disabled={isPending}
-                    className={`rounded-md border border-input px-2 py-1 text-xs font-medium cursor-pointer disabled:opacity-50 ${statusColors[candidate.status] || ''}`}
+          )}
+          {filtered.map((candidate) => (
+            <TableRow key={candidate.id}>
+              <TableCell className="font-medium">{candidate.full_name}</TableCell>
+              <TableCell>{candidate.email}</TableCell>
+              <TableCell>{candidate.position_applied || '-'}</TableCell>
+              <TableCell>
+                <select
+                  value={candidate.status}
+                  onChange={(e) => handleStatusChange(candidate.id, e.target.value)}
+                  disabled={isPending}
+                  className={`rounded-md border-0 px-2 py-1 text-xs font-medium cursor-pointer disabled:opacity-50 ${statusStyle[candidate.status] || ''}`}
+                >
+                  {STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {new Date(candidate.created_at).toLocaleDateString()}
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setEditingCandidate(candidate)}
                   >
-                    {STATUSES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {new Date(candidate.created_at).toLocaleDateString()}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => setEditingCandidate(candidate)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                      <span className="sr-only">Edit</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => setDeletingCandidate(candidate)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                      <span className="sr-only">Delete</span>
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+                    <Pencil className="h-4 w-4" />
+                    <span className="sr-only">Edit</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setDeletingCandidate(candidate)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                    <span className="sr-only">Delete</span>
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
 
       <Dialog open={!!editingCandidate} onOpenChange={(open) => { if (!open) setEditingCandidate(null); }}>
         <DialogContent className="sm:max-w-lg">
@@ -195,53 +205,68 @@ export function CandidatesClient({ candidates, statusColors }: CandidatesClientP
             </DialogDescription>
           </DialogHeader>
           {editingCandidate && (
-            <form onSubmit={handleEdit} className="space-y-4">
+            <form onSubmit={handleEdit} className="space-y-6">
               <input type="hidden" name="id" value={editingCandidate.id} />
-              <div className="space-y-2">
-                <label htmlFor="full_name" className="text-sm font-medium">Full Name</label>
-                <Input
-                  id="full_name"
-                  name="full_name"
-                  defaultValue={editingCandidate.full_name}
-                  required
-                />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="full_name">Full Name</Label>
+                  <Input
+                    id="full_name"
+                    name="full_name"
+                    defaultValue={editingCandidate.full_name}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    defaultValue={editingCandidate.email}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    name="phone"
+                    defaultValue={editingCandidate.phone || ''}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="position_applied">Position Applied</Label>
+                  <Input
+                    id="position_applied"
+                    name="position_applied"
+                    defaultValue={editingCandidate.position_applied || ''}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="resume_url">Resume URL</Label>
+                  <Input
+                    id="resume_url"
+                    name="resume_url"
+                    defaultValue={editingCandidate.resume_url || ''}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status</Label>
+                  <select
+                    id="status"
+                    name="status"
+                    defaultValue={editingCandidate.status}
+                    className="flex h-12 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  >
+                    {STATUSES.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium">Email</label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  defaultValue={editingCandidate.email}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="phone" className="text-sm font-medium">Phone</label>
-                <Input
-                  id="phone"
-                  name="phone"
-                  defaultValue={editingCandidate.phone || ''}
-                />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="position_applied" className="text-sm font-medium">Position Applied</label>
-                <Input
-                  id="position_applied"
-                  name="position_applied"
-                  defaultValue={editingCandidate.position_applied || ''}
-                />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="resume_url" className="text-sm font-medium">Resume URL</label>
-                <Input
-                  id="resume_url"
-                  name="resume_url"
-                  defaultValue={editingCandidate.resume_url || ''}
-                />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="notes" className="text-sm font-medium">Notes</label>
+                <Label htmlFor="notes">Notes</Label>
                 <textarea
                   id="notes"
                   name="notes"
@@ -249,19 +274,6 @@ export function CandidatesClient({ candidates, statusColors }: CandidatesClientP
                   defaultValue={editingCandidate.notes || ''}
                   className="flex w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                 />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="status" className="text-sm font-medium">Status</label>
-                <select
-                  id="status"
-                  name="status"
-                  defaultValue={editingCandidate.status}
-                  className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                >
-                  {STATUSES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
               </div>
               <DialogFooter>
                 <DialogClose render={<Button type="button" variant="outline" />}>

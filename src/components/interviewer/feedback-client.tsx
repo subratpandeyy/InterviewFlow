@@ -76,8 +76,8 @@ export function FeedbackClient({ feedbacks, interviews }: FeedbackClientProps) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-semibold">Submitted Feedback</h2>
-      <div className="grid gap-4 md:grid-cols-2">
+      <h2 className="text-xl font-semibold text-foreground">Submitted Feedback</h2>
+      <div className="grid gap-4 sm:grid-cols-2">
         {sorted.map((fb) => {
           const interview = interviewMap.get(fb.interview_id);
           const isEditing = editingId === fb.id;
@@ -88,7 +88,7 @@ export function FeedbackClient({ feedbacks, interviews }: FeedbackClientProps) {
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     {interview && (
-                      <p className="text-sm font-medium">
+                      <p className="text-sm font-medium text-foreground">
                         {interview.candidate?.full_name} - {interview.position?.title}
                       </p>
                     )}
@@ -100,7 +100,7 @@ export function FeedbackClient({ feedbacks, interviews }: FeedbackClientProps) {
                     {fb.is_finalized ? (
                       <Badge variant="secondary">Finalized</Badge>
                     ) : (
-                      <Badge variant={fb.recommendation === 'hire' ? 'default' : 'secondary'}>
+                      <Badge variant={fb.recommendation === 'hire' ? 'success' : fb.recommendation === 'reject' ? 'destructive' : 'warning'}>
                         {fb.recommendation}
                       </Badge>
                     )}
@@ -148,10 +148,10 @@ export function FeedbackClient({ feedbacks, interviews }: FeedbackClientProps) {
                 )}
 
                 {isEditing && (
-                  <form action={handleEdit} className="space-y-3 mt-2 border-t pt-3">
+                  <form action={handleEdit} className="space-y-4 mt-2 border-t border-border pt-4">
                     <input type="hidden" name="feedback_id" value={fb.id} />
 
-                    <div className="grid gap-3 md:grid-cols-2">
+                    <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-1">
                         <Label htmlFor={`edit-rating-${fb.id}`}>Rating</Label>
                         <select

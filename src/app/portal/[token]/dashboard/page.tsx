@@ -74,7 +74,7 @@ export default async function DashboardPage({
     .order('created_at', { ascending: false });
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 p-6 py-8">
+    <div className="mx-auto w-full max-w-[1200px] space-y-8 px-4 py-8 sm:px-6 lg:px-8">
       <Card>
         <CardHeader>
           <CardTitle>Candidate Profile</CardTitle>
@@ -128,7 +128,7 @@ export default async function DashboardPage({
                       isCompleted
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted text-muted-foreground'
-                    } ${isCurrent ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+                    } ${isCurrent ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
                   >
                     {idx + 1}
                   </div>

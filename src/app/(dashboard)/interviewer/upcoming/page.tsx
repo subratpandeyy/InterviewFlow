@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Calendar } from 'lucide-react';
 
 export default async function UpcomingPage() {
   const supabase = await createServer();
@@ -36,17 +37,21 @@ export default async function UpcomingPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Upcoming Interviews</h1>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">Upcoming Interviews</h1>
+        <p className="text-sm text-muted-foreground mt-1">View and prepare for your scheduled interviews</p>
+      </div>
 
       {interviews?.length === 0 ? (
         <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            No upcoming interviews assigned.
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Calendar className="size-10 text-muted-foreground/40 mb-3" />
+            <p className="text-sm text-muted-foreground">No upcoming interviews assigned.</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="rounded-lg border">
+        <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -84,7 +89,7 @@ export default async function UpcomingPage() {
                         href={interview.meeting_link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
+                        className="text-accent hover:underline"
                       >
                         Join
                       </a>

@@ -1,5 +1,6 @@
 import { createAdmin } from '@/lib/supabase/admin';
 import { CandidatePortalVerify } from '@/components/candidate/portal-verify';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,20 +22,24 @@ export default async function PortalPage({
 
   if (!candidate) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-muted/30">
-        <div className="w-full max-w-md text-center space-y-4 p-8">
-          <h1 className="text-2xl font-bold">Invalid or Expired Link</h1>
-          <p className="text-muted-foreground">
-            This access link is invalid or has expired. Please contact your recruiter for a new link.
-          </p>
+      <div className="min-h-screen bg-background">
+        <div className="mx-auto w-full max-w-md px-4 py-8 sm:px-6 lg:px-8">
+          <Card className="text-center">
+            <CardHeader>
+              <CardTitle>Invalid or Expired Link</CardTitle>
+              <CardDescription>
+                This access link is invalid or has expired. Please contact your recruiter for a new link.
+              </CardDescription>
+            </CardHeader>
+          </Card>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center bg-muted/30 py-12">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto w-full max-w-md px-4 py-8 sm:px-6 lg:px-8">
         <CandidatePortalVerify
           candidateId={candidate.id}
           candidateEmail={candidate.email}

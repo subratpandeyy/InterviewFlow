@@ -29,17 +29,20 @@ export default async function AvailabilityPage({
   const isConnected = !!calendarToken;
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Availability</h1>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">Availability</h1>
+        <p className="text-sm text-muted-foreground mt-1">Manage your Google Calendar sync and interview availability</p>
+      </div>
 
       {connected === 'true' && (
-        <div className="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4 text-green-800 dark:text-green-300">
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-400">
           Google Calendar connected successfully! Your availability will now be synced from Google Calendar.
         </div>
       )}
 
       {error && (
-        <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 text-red-800 dark:text-red-300">
+        <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive-foreground">
           {error === 'google_auth_denied' && 'Google Calendar access was denied.'}
           {error === 'not_authenticated' && 'Please sign in to connect Google Calendar.'}
           {error === 'profile_not_found' && 'Profile not found.'}
@@ -59,11 +62,11 @@ export default async function AvailabilityPage({
         <CardContent>
           {isConnected ? (
             <div className="space-y-4">
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-                <div className="w-3 h-3 rounded-full bg-green-500" />
+              <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-4">
+                <div className="size-3 rounded-full bg-emerald-400" />
                 <div>
-                  <p className="font-medium text-green-800 dark:text-green-300">Connected</p>
-                  <p className="text-sm text-green-600 dark:text-green-400">
+                  <p className="text-sm font-medium text-foreground">Connected</p>
+                  <p className="text-xs text-muted-foreground">
                     {calendarToken.calendar_email} &mdash; last synced {new Date(calendarToken.updated_at).toLocaleDateString()}
                   </p>
                 </div>
@@ -76,7 +79,7 @@ export default async function AvailabilityPage({
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Your availability will be fetched directly from Google Calendar. Candidates will see only times when you are free.
               </p>
               <a href={getAuthUrl(profile.id)}>

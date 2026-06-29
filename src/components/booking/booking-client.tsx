@@ -78,10 +78,10 @@ export function BookingClient({ interview, booking, availabilityByDate, isConfir
 
   if (isConfirmed) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-muted/30">
+      <div className="flex items-center justify-center py-12">
         <Card className="w-full max-w-lg text-center">
           <CardHeader>
-            <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-2" />
+            <CheckCircle className="h-12 w-12 text-emerald-500 mx-auto mb-2" />
             <CardTitle>Interview Confirmed!</CardTitle>
             <CardDescription>
               Your interview has been booked successfully. Check your email for the confirmation details and meeting link.
@@ -93,136 +93,134 @@ export function BookingClient({ interview, booking, availabilityByDate, isConfir
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center bg-muted/30 p-4">
-      <div className="w-full max-w-2xl space-y-6">
+    <div className="w-full max-w-2xl mx-auto space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2 mb-1">
+            <Calendar className="h-5 w-5 text-muted-foreground" />
+            <CardTitle>Schedule Your Interview</CardTitle>
+          </div>
+          <CardDescription>
+            Select a date and time slot that works for you.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between py-2 border-b">
+            <span className="text-muted-foreground">Position</span>
+            <span className="font-medium">{interview.notes || 'Interview'}</span>
+          </div>
+          <div className="flex items-center justify-between py-2 border-b">
+            <span className="text-muted-foreground">Type</span>
+            <Badge variant="secondary">
+              {interviewTypeLabels[interview.interview_type] || interview.interview_type}
+            </Badge>
+          </div>
+          <div className="flex items-center justify-between py-2 border-b">
+            <span className="text-muted-foreground">Duration</span>
+            <span className="font-medium">{interview.duration_minutes} minutes</span>
+          </div>
+          {interview.interviewer && (
+            <div className="flex items-center justify-between py-2">
+              <span className="text-muted-foreground">Interviewer</span>
+              <span className="font-medium">{interview.interviewer.full_name}</span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {dates.length === 0 ? (
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-2 mb-1">
-              <Calendar className="h-5 w-5 text-muted-foreground" />
-              <CardTitle>Schedule Your Interview</CardTitle>
-            </div>
+            <CardTitle>No Available Slots</CardTitle>
             <CardDescription>
-              Select a date and time slot that works for you.
+              The interviewer has no available slots in the next 30 days. Please contact your recruiter.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between py-2 border-b">
-              <span className="text-muted-foreground">Position</span>
-              <span className="font-medium">{interview.notes || 'Interview'}</span>
-            </div>
-            <div className="flex items-center justify-between py-2 border-b">
-              <span className="text-muted-foreground">Type</span>
-              <Badge variant="secondary">
-                {interviewTypeLabels[interview.interview_type] || interview.interview_type}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between py-2 border-b">
-              <span className="text-muted-foreground">Duration</span>
-              <span className="font-medium">{interview.duration_minutes} minutes</span>
-            </div>
-            {interview.interviewer && (
-              <div className="flex items-center justify-between py-2">
-                <span className="text-muted-foreground">Interviewer</span>
-                <span className="font-medium">{interview.interviewer.full_name}</span>
-              </div>
-            )}
-          </CardContent>
         </Card>
-
-        {dates.length === 0 ? (
+      ) : (
+        <>
           <Card>
             <CardHeader>
-              <CardTitle>No Available Slots</CardTitle>
+              <div className="flex items-center gap-2 mb-1">
+                <Calendar className="h-5 w-5 text-muted-foreground" />
+                <CardTitle>Select a Date</CardTitle>
+              </div>
               <CardDescription>
-                The interviewer has no available slots in the next 30 days. Please contact your recruiter.
+                Choose a day that works for you.
               </CardDescription>
             </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                {dates.map((date) => {
+                  const count = availabilityByDate[date].length;
+                  return (
+                    <button
+                      key={date}
+                      onClick={() => { setSelectedDate(date); setSelectedSlot(null); }}
+                      className={`p-3 rounded-lg border text-center transition-all ${
+                        selectedDate === date
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                      }`}
+                    >
+                      <div className="text-xs text-muted-foreground">{getDateLabel(date)}</div>
+                      <div className="text-lg font-bold mt-1">
+                        {date.split('-')[2]}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {count} slot{count !== 1 ? 's' : ''}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </CardContent>
           </Card>
-        ) : (
-          <>
+
+          {selectedDate && (
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2 mb-1">
-                  <Calendar className="h-5 w-5 text-muted-foreground" />
-                  <CardTitle>Select a Date</CardTitle>
+                  <Clock className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle>Available Times - {getDateLabel(selectedDate)}</CardTitle>
                 </div>
                 <CardDescription>
-                  Choose a day that works for you.
+                  Choose a time for your interview.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                  {dates.map((date) => {
-                    const count = availabilityByDate[date].length;
-                    return (
-                      <button
-                        key={date}
-                        onClick={() => { setSelectedDate(date); setSelectedSlot(null); }}
-                        className={`p-3 rounded-lg border text-center transition-all ${
-                          selectedDate === date
-                            ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                            : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                        }`}
-                      >
-                        <div className="text-xs text-muted-foreground">{getDateLabel(date)}</div>
-                        <div className="text-lg font-bold mt-1">
-                          {date.split('-')[2]}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {count} slot{count !== 1 ? 's' : ''}
-                        </div>
-                      </button>
-                    );
-                  })}
+                <div className="grid gap-2 md:grid-cols-2">
+                  {availabilityByDate[selectedDate].map((slot) => (
+                    <button
+                      key={slot.time}
+                      onClick={() => setSelectedSlot(slot.time)}
+                      className={`p-3 rounded-lg border text-left transition-all ${
+                        selectedSlot === slot.time
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                      }`}
+                    >
+                      <span className="font-medium">{slot.label}</span>
+                    </button>
+                  ))}
                 </div>
+
+                {availabilityByDate[selectedDate].length > 0 && (
+                  <div className="mt-6">
+                    <Button
+                      onClick={handleConfirm}
+                      disabled={!selectedSlot || loading}
+                      className="w-full"
+                    >
+                      {loading ? 'Confirming...' : 'Confirm Booking'}
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
-
-            {selectedDate && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Clock className="h-5 w-5 text-muted-foreground" />
-                    <CardTitle>Available Times - {getDateLabel(selectedDate)}</CardTitle>
-                  </div>
-                  <CardDescription>
-                    Choose a time for your interview.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-2 md:grid-cols-2">
-                    {availabilityByDate[selectedDate].map((slot) => (
-                      <button
-                        key={slot.time}
-                        onClick={() => setSelectedSlot(slot.time)}
-                        className={`p-3 rounded-lg border text-left transition-all ${
-                          selectedSlot === slot.time
-                            ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                            : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                        }`}
-                      >
-                        <span className="font-medium">{slot.label}</span>
-                      </button>
-                    ))}
-                  </div>
-
-                  {availabilityByDate[selectedDate].length > 0 && (
-                    <div className="mt-6">
-                      <Button
-                        onClick={handleConfirm}
-                        disabled={!selectedSlot || loading}
-                        className="w-full"
-                      >
-                        {loading ? 'Confirming...' : 'Confirm Booking'}
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </>
-        )}
-      </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

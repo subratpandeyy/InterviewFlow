@@ -4,15 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { CandidatesClient } from '@/components/recruiter/candidates-client';
 
-const statusColors: Record<string, string> = {
-  applied: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  screening: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  scheduled: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-  interviewed: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-  selected: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-};
-
 export default async function CandidatesPage({
   searchParams,
 }: {
@@ -44,9 +35,12 @@ export default async function CandidatesPage({
   const { data: candidates } = await query;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Candidates</h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Candidates</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage and track your candidates</p>
+        </div>
         <Link href="/recruiter/candidates/new">
           <Button>
             <Plus className="h-4 w-4 mr-2" />
@@ -55,7 +49,7 @@ export default async function CandidatesPage({
         </Link>
       </div>
 
-      <CandidatesClient candidates={candidates ?? []} statusColors={statusColors} />
+      <CandidatesClient candidates={candidates ?? []} />
     </div>
   );
 }

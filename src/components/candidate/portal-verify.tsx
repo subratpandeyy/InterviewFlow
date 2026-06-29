@@ -109,8 +109,8 @@ export function CandidatePortalVerify({
       </CardHeader>
       <CardContent>
         {step === 'verify' ? (
-          <>
-            <div className="rounded-lg bg-muted p-3 mb-4 text-sm text-center text-muted-foreground">
+          <div className="space-y-4">
+            <div className="rounded-lg bg-accent/10 p-3 text-sm text-center text-accent">
               A verification code will be sent to <strong>{candidateEmail}</strong>
             </div>
             <Button
@@ -120,7 +120,7 @@ export function CandidatePortalVerify({
             >
               {sendingOtp ? 'Sending...' : 'Send Verification Code'}
             </Button>
-          </>
+          </div>
         ) : (
           <div className="space-y-4">
             <div className="flex justify-center gap-2">

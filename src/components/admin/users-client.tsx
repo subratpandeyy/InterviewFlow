@@ -3,11 +3,19 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { XIcon } from 'lucide-react';
+import { XIcon, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { InviteForm } from '@/components/invite/invite-form';
 import { removeMember, revokeInvitation, resendInvitation, updateMemberRole } from '@/lib/actions/admin';
 
@@ -108,47 +116,66 @@ export function UsersClient({ members, pendingInvitations, acceptedInvitations, 
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Team Members</h1>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">Team Members</h1>
+        <p className="text-sm text-muted-foreground mt-1">Manage your organization&apos;s team members and invitations</p>
+      </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Current Members ({members.length})</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {members.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No members found.</p>
-                )}
-                {members.map((m) => {
-                  const profile = m.profiles;
-                  const initials = profile.full_name
-                    .split(' ')
-                    .map((n: string) => n[0])
-                    .join('')
-                    .toUpperCase()
-                    .slice(0, 2);
-                  const isSelf = m.user_id === currentUserId;
-                  return (
-                    <div key={m.user_id} className="flex items-center justify-between py-2">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9">
-                          <AvatarFallback>{initials}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="text-sm font-medium">{profile.full_name}</p>
-                          <p className="text-xs text-muted-foreground">{profile.email}</p>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Member</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead className="w-12" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {members.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={3}>
+                        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                          <Users className="size-8 mb-2" />
+                          <p className="text-sm">No members yet</p>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {isSelf ? (
-                          <Badge variant={m.role === 'organization_admin' ? 'default' : 'secondary'}>
-                            {ROLE_LABELS[m.role] ?? m.role}
-                          </Badge>
-                        ) : (
-                          <>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {members.map((m) => {
+                    const profile = m.profiles;
+                    const initials = profile.full_name
+                      .split(' ')
+                      .map((n: string) => n[0])
+                      .join('')
+                      .toUpperCase()
+                      .slice(0, 2);
+                    const isSelf = m.user_id === currentUserId;
+                    return (
+                      <TableRow key={m.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="size-9">
+                              <AvatarFallback>{initials}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="text-sm font-medium">{profile.full_name}</p>
+                              <p className="text-xs text-muted-foreground">{profile.email}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {isSelf ? (
+                            <Badge variant={m.role === 'organization_admin' ? 'default' : 'secondary'}>
+                              {ROLE_LABELS[m.role] ?? m.role}
+                            </Badge>
+                          ) : (
                             <select
                               value={m.role}
                               onChange={(e) => handleRoleChange(m.id, e.target.value)}
@@ -159,6 +186,10 @@ export function UsersClient({ members, pendingInvitations, acceptedInvitations, 
                               <option value="recruiter">Recruiter</option>
                               <option value="interviewer">Interviewer</option>
                             </select>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {!isSelf && (
                             <Button
                               variant="ghost"
                               size="icon-sm"
@@ -168,13 +199,13 @@ export function UsersClient({ members, pendingInvitations, acceptedInvitations, 
                               <XIcon className="size-4" />
                               <span className="sr-only">Remove</span>
                             </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
 
@@ -183,29 +214,27 @@ export function UsersClient({ members, pendingInvitations, acceptedInvitations, 
               <CardHeader>
                 <CardTitle>Pending Invitations ({pendingInvitations.length})</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {pendingInvitations.map((inv) => (
-                    <div key={inv.id} className="flex items-center justify-between py-1">
-                      <div>
-                        <p className="text-sm font-medium">{inv.email}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {ROLE_LABELS[inv.role] ?? inv.role} &middot; Expires{' '}
-                          {new Date(inv.expires_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">Pending</Badge>
-                        <Button variant="outline" size="sm" onClick={() => handleResend(inv.id)}>
-                          Resend
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleRevoke(inv.id)}>
-                          Revoke
-                        </Button>
-                      </div>
+              <CardContent className="space-y-3">
+                {pendingInvitations.map((inv) => (
+                  <div key={inv.id} className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">{inv.email}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {ROLE_LABELS[inv.role] ?? inv.role} &middot; Expires{' '}
+                        {new Date(inv.expires_at).toLocaleDateString()}
+                      </p>
                     </div>
-                  ))}
-                </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">Pending</Badge>
+                      <Button variant="outline" size="sm" onClick={() => handleResend(inv.id)}>
+                        Resend
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => handleRevoke(inv.id)}>
+                        Revoke
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           )}
@@ -215,21 +244,19 @@ export function UsersClient({ members, pendingInvitations, acceptedInvitations, 
               <CardHeader>
                 <CardTitle>Accepted Invitations ({acceptedInvitations.length})</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {acceptedInvitations.map((inv) => (
-                    <div key={inv.id} className="flex items-center justify-between py-1">
-                      <div>
-                        <p className="text-sm font-medium">{inv.email}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {ROLE_LABELS[inv.role] ?? inv.role} &middot; Accepted{' '}
-                          {new Date(inv.accepted_at!).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <Badge variant="secondary">Accepted</Badge>
+              <CardContent className="space-y-3">
+                {acceptedInvitations.map((inv) => (
+                  <div key={inv.id} className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">{inv.email}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {ROLE_LABELS[inv.role] ?? inv.role} &middot; Accepted{' '}
+                        {new Date(inv.accepted_at!).toLocaleDateString()}
+                      </p>
                     </div>
-                  ))}
-                </div>
+                    <Badge variant="success">Accepted</Badge>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           )}

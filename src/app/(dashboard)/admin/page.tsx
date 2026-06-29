@@ -11,7 +11,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Users, Briefcase, Calendar, UserCheck, ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -115,160 +118,182 @@ export default async function AdminDashboard() {
     return `${h % 12 || 12}:${m.toString().padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
   }
 
-  return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+  const stats = [
+    { label: 'Team Members', value: members.length, icon: Users },
+    { label: 'Total Candidates', value: candidateCount, icon: UserCheck },
+    { label: 'Upcoming Interviews', value: upcomingCount, icon: Calendar },
+    { label: 'Total Interviews', value: totalInterviewCount, icon: Briefcase },
+  ];
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-lg border bg-card p-6">
-          <p className="text-sm text-muted-foreground">Team Members</p>
-          <p className="text-3xl font-bold">{members.length}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-6">
-          <p className="text-sm text-muted-foreground">Current Users</p>
-          <p className="text-3xl font-bold">{members.length}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-6">
-          <p className="text-sm text-muted-foreground">Total Candidates</p>
-          <p className="text-3xl font-bold">{candidateCount}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-6">
-          <p className="text-sm text-muted-foreground">Upcoming Interviews</p>
-          <p className="text-3xl font-bold">{upcomingCount}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-6">
-          <p className="text-sm text-muted-foreground">Total Interviews</p>
-          <p className="text-3xl font-bold">{totalInterviewCount}</p>
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Admin Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1">Overview of your organization</p>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Team Members ({members.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Link href="/admin/users" className="text-sm text-primary hover:underline mb-4 block">
-            Manage team members and invitations →
-          </Link>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Joined</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {members.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">No members found.</TableCell>
-                </TableRow>
-              )}
-              {members.map((m) => {
-                const p = m.profiles;
-                const initials = p.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
-                return (
-                  <TableRow key={m.user_id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8"><AvatarFallback className="text-xs">{initials}</AvatarFallback></Avatar>
-                        <span className="font-medium">{p.full_name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{p.email}</TableCell>
-                    <TableCell>
-                      <Badge variant={m.role === 'organization_admin' ? 'default' : 'secondary'}>
-                        {m.role === 'organization_admin' ? 'Admin' : m.role === 'recruiter' ? 'Recruiter' : 'Interviewer'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">Active</Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{new Date(m.created_at).toLocaleDateString()}</TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {stats.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <Card key={stat.label}>
+              <CardContent className="pb-6 pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
+                    <Icon className="h-5 w-5 text-accent" />
+                  </div>
+                </div>
+                <p className="mt-4 text-2xl font-semibold text-foreground">{stat.value}</p>
+                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Upcoming Interviews ({upcomingCount})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Candidate</TableHead>
-                <TableHead>Position</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Scheduled</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {allInterviews.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">No upcoming interviews.</TableCell>
-                </TableRow>
-              )}
-              {allInterviews.map((i: any) => (
-                <TableRow key={i.id}>
-                  <TableCell className="font-medium">{i.candidate?.full_name}</TableCell>
-                  <TableCell>{i.position?.title}</TableCell>
-                  <TableCell>{interviewTypeLabels[i.interview_type] || i.interview_type}</TableCell>
-                  <TableCell>
-                    <Badge variant={i.status === 'scheduled' ? 'default' : 'secondary'}>
-                      {i.status === 'confirmed' ? 'Confirmed' : i.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {i.scheduled_at ? new Date(i.scheduled_at).toLocaleString() : '-'}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="flex-row items-center justify-between">
+            <CardTitle>Team Members ({members.length})</CardTitle>
+            <Link
+              href="/admin/users"
+              className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'gap-1 text-muted-foreground')}
+            >
+              Manage <ArrowUpRight className="h-3.5 w-3.5" />
+            </Link>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {members.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Users className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                <p className="text-sm text-muted-foreground">No team members yet</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Joined</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {members.map((m) => {
+                      const p = m.profiles;
+                      const initials = p.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+                      return (
+                        <TableRow key={m.user_id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback className="text-xs bg-accent/10 text-accent">{initials}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-medium text-foreground">{p.full_name}</p>
+                                <p className="text-xs text-muted-foreground">{p.email}</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={m.role === 'organization_admin' ? 'default' : 'secondary'}>
+                              {m.role === 'organization_admin' ? 'Admin' : m.role === 'recruiter' ? 'Recruiter' : 'Interviewer'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell><Badge variant="success">Active</Badge></TableCell>
+                          <TableCell className="text-muted-foreground">{new Date(m.created_at).toLocaleDateString()}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Upcoming Interviews ({upcomingCount})</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {allInterviews.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Calendar className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                <p className="text-sm text-muted-foreground">No upcoming interviews</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Candidate</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Scheduled</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {allInterviews.map((i: any) => (
+                      <TableRow key={i.id}>
+                        <TableCell className="font-medium text-foreground">{i.candidate?.full_name}</TableCell>
+                        <TableCell className="text-muted-foreground">{interviewTypeLabels[i.interview_type] || i.interview_type}</TableCell>
+                        <TableCell>
+                          <Badge variant={i.status === 'confirmed' ? 'success' : 'warning'}>
+                            {i.status === 'confirmed' ? 'Confirmed' : 'Scheduled'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {i.scheduled_at ? new Date(i.scheduled_at).toLocaleDateString() : '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {availability.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Interviewer Availability</CardTitle>
           </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Interviewer</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Duration</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {availability.map((s: any) => {
-                  const prof = s.profile as { full_name: string } | undefined;
-                  const start = s.start_time;
-                  const end = s.end_time;
-                  const diff = (parseInt(end.split(':')[0]) * 60 + parseInt(end.split(':')[1])) -
-                               (parseInt(start.split(':')[0]) * 60 + parseInt(start.split(':')[1]));
-                  return (
-                    <TableRow key={s.id}>
-                      <TableCell className="font-medium">{prof?.full_name || 'Unknown'}</TableCell>
-                      <TableCell>{new Date(s.date + 'T12:00:00').toLocaleDateString()}</TableCell>
-                      <TableCell>{formatTime(start)} - {formatTime(end)}</TableCell>
-                      <TableCell className="text-muted-foreground">{diff} min</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+          <CardContent className="pt-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Interviewer</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Time</TableHead>
+                    <TableHead>Duration</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {availability.map((s: any) => {
+                    const prof = s.profile as { full_name: string } | undefined;
+                    const start = s.start_time;
+                    const end = s.end_time;
+                    const diff = (parseInt(end.split(':')[0]) * 60 + parseInt(end.split(':')[1])) -
+                                 (parseInt(start.split(':')[0]) * 60 + parseInt(start.split(':')[1]));
+                    return (
+                      <TableRow key={s.id}>
+                        <TableCell className="font-medium text-foreground">{prof?.full_name || 'Unknown'}</TableCell>
+                        <TableCell className="text-muted-foreground">{new Date(s.date + 'T12:00:00').toLocaleDateString()}</TableCell>
+                        <TableCell className="text-muted-foreground">{formatTime(start)} - {formatTime(end)}</TableCell>
+                        <TableCell className="text-muted-foreground">{diff} min</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}

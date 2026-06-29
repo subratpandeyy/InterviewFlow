@@ -30,50 +30,49 @@ export default async function AdminPositionsPage() {
     .order('created_at', { ascending: false });
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Positions</h1>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">Positions</h1>
+        <p className="text-sm text-muted-foreground mt-1">Manage job openings and create new positions</p>
+      </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>All Positions ({positions?.length ?? 0})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PositionsClient positions={positions ?? []} />
-            </CardContent>
-          </Card>
-        </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>All Positions ({positions?.length ?? 0})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PositionsClient positions={positions ?? []} />
+          </CardContent>
+        </Card>
 
-        <div>
-          <Card>
-            <CardHeader>
-              <CardTitle>Create Position</CardTitle>
-              <CardDescription>Add a new job opening</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form action={createPosition} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Title</Label>
-                  <Input id="title" name="title" required placeholder="e.g. Senior Frontend Developer" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="department">Department</Label>
-                  <Input id="department" name="department" required placeholder="e.g. Engineering" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="experience_required">Experience Required</Label>
-                  <Input id="experience_required" name="experience_required" placeholder="e.g. 3-5 years" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea id="description" name="description" rows={3} placeholder="Job description..." />
-                </div>
-                <Button type="submit" className="w-full">Create Position</Button>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Create Position</CardTitle>
+            <CardDescription>Add a new job opening</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form action={createPosition} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="title">Title</Label>
+                <Input id="title" name="title" required placeholder="e.g. Senior Frontend Developer" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="department">Department</Label>
+                <Input id="department" name="department" required placeholder="e.g. Engineering" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="experience_required">Experience Required</Label>
+                <Input id="experience_required" name="experience_required" placeholder="e.g. 3-5 years" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea id="description" name="description" rows={3} placeholder="Job description..." />
+              </div>
+              <Button type="submit" className="w-full">Create Position</Button>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

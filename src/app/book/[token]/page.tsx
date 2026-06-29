@@ -3,6 +3,7 @@ import { createAdmin } from '@/lib/supabase/admin';
 import { BookingClient } from '@/components/booking/booking-client';
 import { getInterviewerTokens } from '@/lib/google/tokens';
 import { getFreeBusySlots } from '@/lib/google/calendar';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,13 +27,15 @@ export default async function BookingPage({
   if (!booking || booking.status === 'booked') {
     if (booking?.status === 'booked') {
       return (
-        <div className="flex flex-1 items-center justify-center bg-muted/30">
-          <BookingClient
-            interview={booking.interview}
-            booking={booking}
-            availabilityByDate={{}}
-            isConfirmed={true}
-          />
+        <div className="min-h-screen bg-background">
+          <div className="mx-auto w-full max-w-[1200px] px-4 py-8 sm:px-6 lg:px-8">
+            <BookingClient
+              interview={booking.interview}
+              booking={booking}
+              availabilityByDate={{}}
+              isConfirmed={true}
+            />
+          </div>
         </div>
       );
     }
@@ -44,12 +47,16 @@ export default async function BookingPage({
     await admin.from('bookings').update({ status: 'expired' }).eq('id', booking.id);
 
     return (
-      <div className="flex flex-1 items-center justify-center bg-muted/30">
-        <div className="w-full max-w-md text-center space-y-4 p-8">
-          <h1 className="text-2xl font-bold">Link Expired</h1>
-          <p className="text-muted-foreground">
-            This booking link has expired. Please contact your recruiter for a new link.
-          </p>
+      <div className="min-h-screen bg-background">
+        <div className="mx-auto w-full max-w-md px-4 py-8 sm:px-6 lg:px-8">
+          <Card className="text-center">
+            <CardHeader>
+              <CardTitle>Link Expired</CardTitle>
+              <CardDescription>
+                This booking link has expired. Please contact your recruiter for a new link.
+              </CardDescription>
+            </CardHeader>
+          </Card>
         </div>
       </div>
     );
@@ -105,25 +112,15 @@ export default async function BookingPage({
     }
   }
 
-  if (confirmed === 'true') {
-    return (
-      <div className="flex flex-1 items-center justify-center bg-muted/30">
-        <BookingClient
-          interview={interview}
-          booking={booking}
-          availabilityByDate={{}}
-          isConfirmed={true}
-        />
-      </div>
-    );
-  }
-
   return (
-    <BookingClient
-      interview={interview}
-      booking={booking}
-      availabilityByDate={availabilityByDate}
-      isConfirmed={false}
-    />
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto w-full max-w-[1200px] px-4 py-8 sm:px-6 lg:px-8">
+        {confirmed === 'true' ? (
+          <BookingClient interview={interview} booking={booking} availabilityByDate={{}} isConfirmed={true} />
+        ) : (
+          <BookingClient interview={interview} booking={booking} availabilityByDate={availabilityByDate} isConfirmed={false} />
+        )}
+      </div>
+    </div>
   );
 }
