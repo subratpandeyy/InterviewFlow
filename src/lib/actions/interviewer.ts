@@ -67,7 +67,7 @@ export async function submitFeedback(formData: FormData) {
 
   const interviewId = formData.get('interview_id') as string;
 
-  const { error } = await supabase.from('feedback').insert({
+  const { error } = await supabase.from('interview_feedback').insert({
     interview_id: interviewId,
     interviewer_id: profile.id,
     rating: parseInt(formData.get('rating') as string),

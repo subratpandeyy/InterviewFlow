@@ -2,17 +2,15 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { createServer } from '@/lib/supabase/server';
 import { createAdmin } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
 import { getInterviewerTokens } from '@/lib/google/tokens';
 import { createCalendarEvent } from '@/lib/google/calendar';
 
 export async function bookInterviewSlot(interviewId: string, date: string, startTime: string, token: string) {
-  const supabase = await createServer();
   const admin = createAdmin();
 
-  const { data: interview } = await supabase
+  const { data: interview } = await admin
     .from('interviews')
     .select('*, candidate:candidates(*), booking:bookings(*)')
     .eq('id', interviewId)
@@ -49,7 +47,7 @@ export async function bookInterviewSlot(interviewId: string, date: string, start
     const meetingLink = event.hangoutLink || `https://meet.google.com/new`;
     const meetingProvider = 'google_meet';
 
-    const { error: interviewError } = await supabase
+    const { error: interviewError } = await admin
       .from('interviews')
       .update({
         scheduled_at: scheduledAt,
@@ -61,7 +59,7 @@ export async function bookInterviewSlot(interviewId: string, date: string, start
 
     if (interviewError) throw new Error(interviewError.message);
 
-    const { error: meetingError } = await supabase.from('interview_meetings').insert({
+    const { error: meetingError } = await admin.from('interview_meetings').insert({
       interview_id: interviewId,
       provider: meetingProvider,
       meeting_url: meetingLink,
@@ -69,7 +67,7 @@ export async function bookInterviewSlot(interviewId: string, date: string, start
 
     if (meetingError) throw new Error(meetingError.message);
 
-    const { error: bookingError } = await supabase
+    const { error: bookingError } = await admin
       .from('bookings')
       .update({ status: 'booked' })
       .eq('token', token);
@@ -118,7 +116,7 @@ export async function bookInterviewSlot(interviewId: string, date: string, start
     const meetingProvider = 'google_meet';
     const meetingLink = `https://meet.google.com/new`;
 
-    const { error: interviewError } = await supabase
+    const { error: interviewError } = await admin
       .from('interviews')
       .update({
         scheduled_at: scheduledAt,
@@ -133,7 +131,7 @@ export async function bookInterviewSlot(interviewId: string, date: string, start
       throw new Error(interviewError.message);
     }
 
-    const { error: meetingError } = await supabase.from('interview_meetings').insert({
+    const { error: meetingError } = await admin.from('interview_meetings').insert({
       interview_id: interviewId,
       provider: meetingProvider,
       meeting_url: meetingLink,
@@ -144,7 +142,7 @@ export async function bookInterviewSlot(interviewId: string, date: string, start
       throw new Error(meetingError.message);
     }
 
-    const { error: bookingError } = await supabase
+    const { error: bookingError } = await admin
       .from('bookings')
       .update({ status: 'booked' })
       .eq('token', token);

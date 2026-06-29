@@ -25,17 +25,12 @@ export default async function FeedbackPage() {
     .in('status', ['scheduled', 'completed'])
     .order('scheduled_at', { ascending: false });
 
-  const { data: existingFeedback } = await supabase
-    .from('feedback')
-    .select('interview_id')
-    .eq('interviewer_id', profile.id);
-
   const { data: interviewFeedback } = await supabase
     .from('interview_feedback')
     .select('*')
     .eq('interviewer_id', profile.id);
 
-  const feedbackInterviewIds = new Set(existingFeedback?.map(f => f.interview_id) ?? []);
+  const feedbackInterviewIds = new Set(interviewFeedback?.map(f => f.interview_id) ?? []);
   const pendingInterviews = interviews?.filter(i => !feedbackInterviewIds.has(i.id)) ?? [];
 
   return (

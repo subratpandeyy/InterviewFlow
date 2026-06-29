@@ -34,6 +34,7 @@ export default async function CandidatesPage({
     .from('candidates')
     .select('*')
     .eq('organization_id', membership.organization_id)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
   if (q) {

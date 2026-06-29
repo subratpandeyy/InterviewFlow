@@ -26,6 +26,7 @@ export default async function NewSchedulingPage() {
     .from('candidates')
     .select('*')
     .eq('organization_id', membership.organization_id)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
   const { data: interviewerMembers } = await supabase
@@ -44,7 +45,8 @@ export default async function NewSchedulingPage() {
   const { data: positions } = await supabase
     .from('positions')
     .select('*')
-    .eq('organization_id', membership.organization_id);
+    .eq('organization_id', membership.organization_id)
+    .is('deleted_at', null);
 
   return (
     <div className="space-y-6">

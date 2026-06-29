@@ -24,7 +24,7 @@ export default async function AvailabilityPage({
     .from('google_calendar_tokens')
     .select('calendar_email, updated_at')
     .eq('profile_id', profile.id)
-    .single();
+    .maybeSingle();
 
   const isConnected = !!calendarToken;
 

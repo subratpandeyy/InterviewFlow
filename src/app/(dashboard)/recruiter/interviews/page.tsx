@@ -20,6 +20,7 @@ export default async function InterviewsPage() {
     .from('interviews')
     .select('*, candidate:candidates(*), position:positions(*)')
     .eq('organization_id', membership.organization_id)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
   const { data: allMeetings } = await admin

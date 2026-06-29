@@ -26,6 +26,7 @@ export default async function AdminPositionsPage() {
     .from('positions')
     .select('*')
     .eq('organization_id', membership.organization_id)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
   return (

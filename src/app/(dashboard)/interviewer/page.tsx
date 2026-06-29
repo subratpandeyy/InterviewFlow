@@ -39,7 +39,7 @@ export default async function InterviewerDashboard() {
       .eq('interviewer_id', profile.id)
       .order('scheduled_at', { ascending: true }),
     supabase
-      .from('feedback')
+      .from('interview_feedback')
       .select('interview_id')
       .eq('interviewer_id', profile.id),
     supabase

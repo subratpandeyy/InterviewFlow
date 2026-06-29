@@ -30,44 +30,81 @@ export default async function AdminDashboard() {
 
   const admin = createAdmin();
 
-  const [membersRes, candidatesRes, interviewsRes, availabilityRes] = await Promise.all([
+  const [membersRes, profileRes] = await Promise.all([
     admin
       .from('organization_members')
-      .select('*, profiles!inner(full_name, email)')
+      .select('id, role, user_id, created_at')
       .eq('organization_id', membership.organization_id)
       .order('created_at', { ascending: false }),
-    supabase
+    admin
+      .from('profiles')
+      .select('user_id, full_name, email')
+      .in(
+        'user_id',
+        (
+          await admin
+            .from('organization_members')
+            .select('user_id')
+            .eq('organization_id', membership.organization_id)
+        ).data?.map((m) => m.user_id) ?? [],
+      ),
+  ]);
+
+  const profileByUserId = Object.fromEntries(
+    (profileRes.data ?? []).map((p) => [p.user_id, p]),
+  );
+  const members = (membersRes.data ?? []).map((m) => ({
+    ...m,
+    profiles: profileByUserId[m.user_id] ?? { full_name: 'Unknown', email: '' },
+  }));
+
+  const [
+    candidatesCountRes,
+    allInterviewsRes,
+    availabilityRes,
+    upcomingCountRes,
+    totalInterviewCountRes,
+  ] = await Promise.all([
+    admin
       .from('candidates')
-      .select('*')
+      .select('id', { count: 'exact', head: true })
       .eq('organization_id', membership.organization_id)
-      .order('created_at', { ascending: false })
-      .limit(20),
+      .is('deleted_at', null),
     supabase
       .from('interviews')
-      .select('*, candidate:candidates(*), position:positions(*)')
+      .select('id, interview_type, status, scheduled_at, candidate:candidates!inner(full_name), position:positions!inner(title)')
       .eq('organization_id', membership.organization_id)
-      .order('created_at', { ascending: false })
+      .is('deleted_at', null)
+      .in('status', ['scheduled', 'confirmed'])
+      .gte('scheduled_at', new Date().toISOString())
+      .order('scheduled_at', { ascending: true })
       .limit(20),
     admin
       .from('interviewer_availability')
-      .select('*, profile:profiles!interviewer_id(full_name)')
+      .select('id, date, start_time, end_time, profile:profiles!interviewer_id(full_name)')
       .eq('status', 'available')
       .gte('date', new Date().toISOString().split('T')[0])
       .order('date', { ascending: true })
       .order('start_time', { ascending: true })
       .limit(50),
+    admin
+      .from('interviews')
+      .select('id', { count: 'exact', head: true })
+      .eq('organization_id', membership.organization_id)
+      .is('deleted_at', null)
+      .in('status', ['scheduled', 'confirmed'])
+      .gte('scheduled_at', new Date().toISOString()),
+    admin
+      .from('interviews')
+      .select('id', { count: 'exact', head: true })
+      .eq('organization_id', membership.organization_id)
+      .is('deleted_at', null),
   ]);
-
-  const members = (membersRes.data ?? []) as unknown as { role: string; user_id: string; created_at: string; profiles: { full_name: string; email: string } }[];
-  const candidates = candidatesRes.data ?? [];
-  const interviews = interviewsRes.data ?? [];
+  const candidateCount = candidatesCountRes.count ?? 0;
+  const allInterviews = allInterviewsRes.data ?? [];
   const availability = availabilityRes.data ?? [];
-
-  const upcomingInterviews = interviews.filter(i => i.status === 'scheduled' || i.status === 'pending');
-  const { count: interviewCount } = await supabase
-    .from('interviews')
-    .select('*', { count: 'exact', head: true })
-    .eq('organization_id', membership.organization_id);
+  const upcomingCount = upcomingCountRes.count ?? allInterviews.length;
+  const totalInterviewCount = totalInterviewCountRes.count ?? 0;
 
   const interviewTypeLabels: Record<string, string> = {
     hr: 'HR Round', technical: 'Technical Round', managerial: 'Managerial Round', final: 'Final Round',
@@ -82,18 +119,26 @@ export default async function AdminDashboard() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Admin Dashboard</h1>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-lg border bg-card p-6">
           <p className="text-sm text-muted-foreground">Team Members</p>
           <p className="text-3xl font-bold">{members.length}</p>
         </div>
         <div className="rounded-lg border bg-card p-6">
+          <p className="text-sm text-muted-foreground">Current Users</p>
+          <p className="text-3xl font-bold">{members.length}</p>
+        </div>
+        <div className="rounded-lg border bg-card p-6">
           <p className="text-sm text-muted-foreground">Total Candidates</p>
-          <p className="text-3xl font-bold">{candidates.length}</p>
+          <p className="text-3xl font-bold">{candidateCount}</p>
+        </div>
+        <div className="rounded-lg border bg-card p-6">
+          <p className="text-sm text-muted-foreground">Upcoming Interviews</p>
+          <p className="text-3xl font-bold">{upcomingCount}</p>
         </div>
         <div className="rounded-lg border bg-card p-6">
           <p className="text-sm text-muted-foreground">Total Interviews</p>
-          <p className="text-3xl font-bold">{interviewCount ?? 0}</p>
+          <p className="text-3xl font-bold">{totalInterviewCount}</p>
         </div>
       </div>
 
@@ -111,18 +156,19 @@ export default async function AdminDashboard() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Joined</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {members.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground">No members found.</TableCell>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground">No members found.</TableCell>
                 </TableRow>
               )}
               {members.map((m) => {
                 const p = m.profiles;
-                const initials = p.full_name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+                const initials = p.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
                 return (
                   <TableRow key={m.user_id}>
                     <TableCell>
@@ -137,6 +183,9 @@ export default async function AdminDashboard() {
                         {m.role === 'organization_admin' ? 'Admin' : m.role === 'recruiter' ? 'Recruiter' : 'Interviewer'}
                       </Badge>
                     </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">Active</Badge>
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{new Date(m.created_at).toLocaleDateString()}</TableCell>
                   </TableRow>
                 );
@@ -148,7 +197,7 @@ export default async function AdminDashboard() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Upcoming Interviews ({upcomingInterviews.length})</CardTitle>
+          <CardTitle>Upcoming Interviews ({upcomingCount})</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -162,17 +211,21 @@ export default async function AdminDashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {upcomingInterviews.length === 0 && (
+              {allInterviews.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground">No upcoming interviews.</TableCell>
                 </TableRow>
               )}
-              {upcomingInterviews.map((i) => (
+              {allInterviews.map((i: any) => (
                 <TableRow key={i.id}>
                   <TableCell className="font-medium">{i.candidate?.full_name}</TableCell>
                   <TableCell>{i.position?.title}</TableCell>
                   <TableCell>{interviewTypeLabels[i.interview_type] || i.interview_type}</TableCell>
-                  <TableCell><Badge variant={i.status === 'scheduled' ? 'default' : 'secondary'}>{i.status}</Badge></TableCell>
+                  <TableCell>
+                    <Badge variant={i.status === 'scheduled' ? 'default' : 'secondary'}>
+                      {i.status === 'confirmed' ? 'Confirmed' : i.status}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
                     {i.scheduled_at ? new Date(i.scheduled_at).toLocaleString() : '-'}
                   </TableCell>
@@ -199,7 +252,7 @@ export default async function AdminDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {availability.map((s) => {
+                {availability.map((s: any) => {
                   const prof = s.profile as { full_name: string } | undefined;
                   const start = s.start_time;
                   const end = s.end_time;

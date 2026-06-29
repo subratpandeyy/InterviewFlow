@@ -46,11 +46,22 @@ const defaultEditData = {
   status: 'open',
 };
 
+const defaultCreateData = {
+  title: '',
+  department: '',
+  employment_type: '',
+  location: '',
+  experience_required: '',
+  description: '',
+  skills: '',
+};
+
 export default function PositionsClient({ positions }: { positions: Position[] }) {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
   const [editData, setEditData] = useState(defaultEditData);
+  const [createData, setCreateData] = useState(defaultCreateData);
   const [showConfirmDialog, setShowConfirmDialog] = useState<string | null>(null);
   const [isCreatePending, startCreateTransition] = useTransition();
   const [isUpdatePending, startUpdateTransition] = useTransition();
@@ -88,6 +99,7 @@ export default function PositionsClient({ positions }: { positions: Position[] }
       try {
         await createPosition(formData);
         toast.success('Position created successfully');
+        setCreateData(defaultCreateData);
         router.refresh();
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to create position');
@@ -356,18 +368,34 @@ export default function PositionsClient({ positions }: { positions: Position[] }
                 <form action={handleCreate} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="title">Title</Label>
-                    <Input id="title" name="title" required placeholder="e.g. Senior Frontend Developer" />
+                    <Input
+                      id="title"
+                      name="title"
+                      required
+                      placeholder="e.g. Senior Frontend Developer"
+                      value={createData.title}
+                      onChange={(e) => setCreateData({ ...createData, title: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="department">Department</Label>
-                    <Input id="department" name="department" required placeholder="e.g. Engineering" />
+                    <Input
+                      id="department"
+                      name="department"
+                      required
+                      placeholder="e.g. Engineering"
+                      value={createData.department}
+                      onChange={(e) => setCreateData({ ...createData, department: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="employment_type">Employment Type</Label>
+                    <Label htmlFor="create-employment_type">Employment Type</Label>
                     <select
-                      id="employment_type"
+                      id="create-employment_type"
                       name="employment_type"
                       className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                      value={createData.employment_type}
+                      onChange={(e) => setCreateData({ ...createData, employment_type: e.target.value })}
                     >
                       <option value="">Select type</option>
                       {EMPLOYMENT_TYPES.map((t) => (
@@ -376,16 +404,45 @@ export default function PositionsClient({ positions }: { positions: Position[] }
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="location">Location</Label>
-                    <Input id="location" name="location" placeholder="e.g. San Francisco, CA" />
+                    <Label htmlFor="create-location">Location</Label>
+                    <Input
+                      id="create-location"
+                      name="location"
+                      placeholder="e.g. San Francisco, CA"
+                      value={createData.location}
+                      onChange={(e) => setCreateData({ ...createData, location: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="experience_required">Experience Required</Label>
-                    <Input id="experience_required" name="experience_required" placeholder="e.g. 3-5 years" />
+                    <Label htmlFor="create-experience_required">Experience Required</Label>
+                    <Input
+                      id="create-experience_required"
+                      name="experience_required"
+                      placeholder="e.g. 3-5 years"
+                      value={createData.experience_required}
+                      onChange={(e) => setCreateData({ ...createData, experience_required: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea id="description" name="description" rows={3} placeholder="Job description..." />
+                    <Label htmlFor="create-description">Description</Label>
+                    <Textarea
+                      id="create-description"
+                      name="description"
+                      rows={3}
+                      placeholder="Job description..."
+                      value={createData.description}
+                      onChange={(e) => setCreateData({ ...createData, description: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="create-skills">Skills (comma separated)</Label>
+                    <Input
+                      id="create-skills"
+                      name="skills"
+                      placeholder="e.g. React, TypeScript, Node.js"
+                      value={createData.skills}
+                      onChange={(e) => setCreateData({ ...createData, skills: e.target.value })}
+                    />
                   </div>
                   <Button type="submit" className="w-full" disabled={isCreatePending}>
                     <Plus className="h-4 w-4 mr-2" />

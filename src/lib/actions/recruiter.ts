@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createServer } from '@/lib/supabase/server';
+import { sendEmail } from '@/lib/email';
+import type { CandidateStatus, PositionStatus } from '@/types';
 
 export async function createCandidate(formData: FormData) {
   const supabase = await createServer();
@@ -17,6 +19,10 @@ export async function createCandidate(formData: FormData) {
 
   if (!membership || membership.role !== 'recruiter') throw new Error('Unauthorized');
 
+  const token = crypto.randomUUID();
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 30);
+
   const { error } = await supabase.from('candidates').insert({
     organization_id: membership.organization_id,
     full_name: formData.get('full_name') as string,
@@ -26,10 +32,24 @@ export async function createCandidate(formData: FormData) {
     resume_url: formData.get('resume_url') as string || null,
     notes: formData.get('notes') as string || null,
     status: 'applied',
+    access_token: token,
+    access_token_expires_at: expiresAt.toISOString(),
   });
 
   if (error) throw new Error(error.message);
+
+  const name = formData.get('full_name') as string;
+  const email = formData.get('email') as string;
+  const link = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/portal/${token}`;
+
+  await sendEmail({
+    to: email,
+    subject: 'Your Interview Portal Access',
+    html: `<h1>Hello ${name},</h1><p>Welcome to InterviewFlow. Click the link below to access your portal:</p><p><a href="${link}">${link}</a></p>`,
+  });
+
   revalidatePath('/recruiter/candidates');
+  redirect('/recruiter/candidates');
 }
 
 export async function updateCandidateStatus(id: string, status: string) {
@@ -134,12 +154,19 @@ export async function createPosition(formData: FormData) {
 
   if (!membership) throw new Error('Unauthorized');
 
+  const skillsRaw = formData.get('skills') as string || null;
+  const skills = skillsRaw ? skillsRaw.split(',').map(s => s.trim()).filter(Boolean) : null;
+
   const { error } = await supabase.from('positions').insert({
     organization_id: membership.organization_id,
     title: formData.get('title') as string,
     department: formData.get('department') as string,
     experience_required: formData.get('experience_required') as string || null,
     description: formData.get('description') as string || null,
+    employment_type: formData.get('employment_type') as string || null,
+    location: formData.get('location') as string || null,
+    skills,
+    status: 'open',
   });
 
   if (error) throw new Error(error.message);
@@ -162,6 +189,11 @@ export async function updateCandidate(formData: FormData) {
   const id = formData.get('id') as string;
   if (!id) return { error: 'Candidate ID is required' };
 
+  const status = formData.get('status') as CandidateStatus | null;
+  if (status && !['applied', 'screening', 'scheduled', 'interviewed', 'selected', 'rejected'].includes(status)) {
+    return { error: 'Invalid status' };
+  }
+
   const { error } = await supabase
     .from('candidates')
     .update({
@@ -171,7 +203,7 @@ export async function updateCandidate(formData: FormData) {
       position_applied: formData.get('position_applied') as string || null,
       resume_url: formData.get('resume_url') as string || null,
       notes: formData.get('notes') as string || null,
-      status: formData.get('status') as string || null,
+      ...(status ? { status } : {}),
     })
     .eq('id', id);
 
@@ -226,6 +258,10 @@ export async function updatePosition(formData: FormData) {
 
   const skillsRaw = formData.get('skills') as string || null;
   const skills = skillsRaw ? skillsRaw.split(',').map(s => s.trim()).filter(Boolean) : null;
+  const status = formData.get('status') as PositionStatus | null;
+  if (status && !['open', 'closed', 'on-hold', 'filled'].includes(status)) {
+    return { error: 'Invalid status' };
+  }
 
   const { error } = await supabase
     .from('positions')
@@ -237,7 +273,7 @@ export async function updatePosition(formData: FormData) {
       employment_type: formData.get('employment_type') as string || null,
       location: formData.get('location') as string || null,
       skills,
-      status: formData.get('status') as string || null,
+      ...(status ? { status } : {}),
     })
     .eq('id', id);
 

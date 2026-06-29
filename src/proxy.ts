@@ -30,6 +30,7 @@ export async function proxy(request: NextRequest) {
   const isPublic = publicRoutes.some((route) => pathname === route);
   const isBooking = pathname.startsWith('/book/');
   const isInvite = pathname.startsWith('/invite/');
+  const isPortal = pathname.startsWith('/portal/');
 
   const response = NextResponse.next({ request: { headers: request.headers } });
 
@@ -54,8 +55,8 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Allow booking and invite pages for everyone
-  if (isBooking || isInvite) {
+  // Allow booking, invite, and portal pages for everyone
+  if (isBooking || isInvite || isPortal) {
     return response;
   }
 

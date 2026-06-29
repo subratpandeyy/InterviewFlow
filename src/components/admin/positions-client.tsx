@@ -42,7 +42,16 @@ export function PositionsClient({ positions }: PositionsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<Record<string, string>>({});
+  const [editForm, setEditForm] = useState<Record<string, string>>({
+    title: '',
+    department: '',
+    employment_type: '',
+    location: '',
+    experience_required: '',
+    description: '',
+    skills: '',
+    status: 'open',
+  });
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this position?')) return;
@@ -88,7 +97,7 @@ export function PositionsClient({ positions }: PositionsClientProps) {
 
   const cancelEdit = () => {
     setEditingId(null);
-    setEditForm({});
+    setEditForm({ title: '', department: '', employment_type: '', location: '', experience_required: '', description: '', skills: '', status: 'open' });
   };
 
   const saveEdit = async (id: string) => {

@@ -1,0 +1,261 @@
+// ============================================================
+// GENERATED DATABASE TYPES — InterviewFlow
+// Matches supabase/migrations/00012_authoritative_schema.sql
+// ============================================================
+
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
+export type Role = 'organization_admin' | 'recruiter' | 'interviewer';
+export type CandidateStatus = 'applied' | 'screening' | 'scheduled' | 'interviewed' | 'selected' | 'rejected';
+export type InterviewType = 'hr' | 'technical' | 'managerial' | 'final';
+export type InterviewStatus = 'pending' | 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+export type BookingStatus = 'pending' | 'booked' | 'cancelled' | 'expired';
+export type InvitationStatus = 'pending' | 'accepted' | 'expired' | 'cancelled';
+export type PositionStatus = 'open' | 'closed' | 'on-hold' | 'filled';
+export type EmploymentType = 'full-time' | 'part-time' | 'contract' | 'internship';
+export type MeetingProvider = 'google_meet' | 'zoom' | 'microsoft_teams' | 'custom';
+export type AvailabilityStatus = 'available' | 'booked' | 'blocked';
+export type FeedbackRecommendation = 'hire' | 'maybe' | 'reject';
+export type NotificationType = 'candidate_created' | 'interview_scheduled' | 'interview_rescheduled' | 'interview_cancelled' | 'reminder_24h' | 'reminder_1h';
+
+// ----- TABLES -----
+
+export interface DbOrganization {
+  id: string;
+  name: string;
+  slug: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbProfile {
+  id: string;
+  user_id: string | null;
+  full_name: string;
+  email: string;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbOrganizationMember {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  role: Role;
+  created_at: string;
+}
+
+export interface DbInvitation {
+  id: string;
+  organization_id: string;
+  email: string;
+  role: 'recruiter' | 'interviewer';
+  token: string;
+  expires_at: string;
+  accepted_at: string | null;
+  status: InvitationStatus;
+  revoked_at: string | null;
+  created_at: string;
+}
+
+export interface DbCandidate {
+  id: string;
+  organization_id: string;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  position_applied: string | null;
+  resume_url: string | null;
+  notes: string | null;
+  status: CandidateStatus;
+  recruiter_id: string | null;
+  deleted_at: string | null;
+  access_token: string | null;
+  access_token_expires_at: string | null;
+  email_verified_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbPosition {
+  id: string;
+  organization_id: string;
+  title: string;
+  department: string;
+  experience_required: string | null;
+  description: string | null;
+  employment_type: EmploymentType | null;
+  location: string | null;
+  skills: string[] | null;
+  status: PositionStatus;
+  created_by: string | null;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbAvailabilitySlot {
+  id: string;
+  profile_id: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  is_available: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbInterviewerAvailability {
+  id: string;
+  interviewer_id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  status: AvailabilityStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbInterview {
+  id: string;
+  organization_id: string;
+  candidate_id: string;
+  position_id: string;
+  interviewer_id: string;
+  recruiter_id: string;
+  interview_type: InterviewType;
+  duration_minutes: number;
+  scheduled_at: string | null;
+  meeting_link: string | null;
+  meeting_provider: MeetingProvider | null;
+  calendar_event_id: string | null;
+  status: InterviewStatus;
+  notes: string | null;
+  booking_token: string | null;
+  booking_expires_at: string | null;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbBooking {
+  id: string;
+  interview_id: string;
+  token: string;
+  status: BookingStatus;
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbFeedback {
+  id: string;
+  interview_id: string;
+  interviewer_id: string;
+  rating: number;
+  communication: number;
+  technical_skills: number;
+  problem_solving: number;
+  comments: string | null;
+  recommendation: FeedbackRecommendation;
+  created_at: string;
+}
+
+export interface DbInterviewFeedback {
+  id: string;
+  interview_id: string;
+  interviewer_id: string;
+  rating: number;
+  communication: number;
+  technical_skills: number;
+  problem_solving: number;
+  comments: string | null;
+  recommendation: FeedbackRecommendation;
+  is_finalized: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbInterviewMeeting {
+  id: string;
+  interview_id: string;
+  provider: MeetingProvider;
+  meeting_url: string;
+  created_at: string;
+}
+
+export interface DbGoogleCalendarToken {
+  id: string;
+  profile_id: string;
+  access_token: string;
+  refresh_token: string;
+  token_expires_at: string;
+  calendar_email: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbNotification {
+  id: string;
+  organization_id: string;
+  recipient_id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  read: boolean;
+  created_at: string;
+}
+
+export interface DbAuditLog {
+  id: string;
+  organization_id: string | null;
+  profile_id: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  metadata: Json | null;
+  created_at: string;
+}
+
+export interface DbCandidateSession {
+  id: string;
+  candidate_id: string;
+  otp_code: string;
+  otp_expires_at: string;
+  otp_verified_at: string | null;
+  session_token: string | null;
+  session_expires_at: string | null;
+  created_at: string;
+}
+
+// ----- DATABASE (for supabase-js type inference) -----
+export interface Database {
+  public: {
+    Tables: {
+      organizations: { Row: DbOrganization; Insert: Omit<DbOrganization, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbOrganization, 'id'>> };
+      profiles: { Row: DbProfile; Insert: Omit<DbProfile, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbProfile, 'id'>> };
+      organization_members: { Row: DbOrganizationMember; Insert: Omit<DbOrganizationMember, 'id' | 'created_at'>; Update: Partial<Omit<DbOrganizationMember, 'id'>> };
+      invitations: { Row: DbInvitation; Insert: Omit<DbInvitation, 'id' | 'token' | 'expires_at' | 'accepted_at' | 'status' | 'revoked_at' | 'created_at'>; Update: Partial<Omit<DbInvitation, 'id'>> };
+      candidates: { Row: DbCandidate; Insert: Omit<DbCandidate, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbCandidate, 'id'>> };
+      positions: { Row: DbPosition; Insert: Omit<DbPosition, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbPosition, 'id'>> };
+      availability_slots: { Row: DbAvailabilitySlot; Insert: Omit<DbAvailabilitySlot, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbAvailabilitySlot, 'id'>> };
+      interviewer_availability: { Row: DbInterviewerAvailability; Insert: Omit<DbInterviewerAvailability, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbInterviewerAvailability, 'id'>> };
+      interviews: { Row: DbInterview; Insert: Omit<DbInterview, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbInterview, 'id'>> };
+      bookings: { Row: DbBooking; Insert: Omit<DbBooking, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbBooking, 'id'>> };
+      feedback: { Row: DbFeedback; Insert: Omit<DbFeedback, 'id' | 'created_at'>; Update: Partial<Omit<DbFeedback, 'id'>> };
+      interview_feedback: { Row: DbInterviewFeedback; Insert: Omit<DbInterviewFeedback, 'id' | 'is_finalized' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbInterviewFeedback, 'id'>> };
+      interview_meetings: { Row: DbInterviewMeeting; Insert: Omit<DbInterviewMeeting, 'id' | 'created_at'>; Update: Partial<Omit<DbInterviewMeeting, 'id'>> };
+      google_calendar_tokens: { Row: DbGoogleCalendarToken; Insert: Omit<DbGoogleCalendarToken, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbGoogleCalendarToken, 'id'>> };
+      notifications: { Row: DbNotification; Insert: Omit<DbNotification, 'id' | 'created_at'>; Update: Partial<Omit<DbNotification, 'id'>> };
+      audit_logs: { Row: DbAuditLog; Insert: Omit<DbAuditLog, 'id' | 'created_at'>; Update: Partial<Omit<DbAuditLog, 'id'>> };
+      candidate_sessions: { Row: DbCandidateSession; Insert: Omit<DbCandidateSession, 'id' | 'created_at'>; Update: Partial<Omit<DbCandidateSession, 'id'>> };
+    };
+    Functions: {
+      get_user_organization_ids: { Args: Record<string, never>; Returns: string[] };
+      generate_otp: { Args: Record<string, never>; Returns: string };
+      check_availability_overlap: { Args: { p_interviewer_id: string; p_date: string; p_start_time: string; p_end_time: string; p_exclude_id?: string }; Returns: boolean };
+      get_available_slots: { Args: { p_interviewer_id: string; p_date: string; p_duration_minutes?: number }; Returns: { slot_start: string; slot_end: string }[] };
+    };
+  };
+}

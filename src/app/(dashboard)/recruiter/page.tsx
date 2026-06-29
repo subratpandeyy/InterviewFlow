@@ -35,12 +35,14 @@ export default async function RecruiterDashboard() {
       .from('candidates')
       .select('*')
       .eq('organization_id', membership.organization_id)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(10),
     supabase
       .from('interviews')
       .select('*, candidate:candidates(*), position:positions(*)')
       .eq('organization_id', membership.organization_id)
+      .is('deleted_at', null)
       .in('status', ['pending', 'scheduled'])
       .order('created_at', { ascending: false }),
     admin

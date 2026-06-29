@@ -18,11 +18,23 @@ export default async function AdminUsersPage() {
   if (!membership) return null;
 
   const admin = createAdmin();
-  const [membersRes, invitationsRes] = await Promise.all([
+  const [membersRes, profileRes, invitationsRes] = await Promise.all([
     admin
       .from('organization_members')
-      .select('id, role, user_id, profiles!inner(full_name, email)')
+      .select('id, role, user_id')
       .eq('organization_id', membership.organization_id),
+    admin
+      .from('profiles')
+      .select('user_id, full_name, email')
+      .in(
+        'user_id',
+        (
+          await admin
+            .from('organization_members')
+            .select('user_id')
+            .eq('organization_id', membership.organization_id)
+        ).data?.map((m) => m.user_id) ?? [],
+      ),
     supabase
       .from('invitations')
       .select('*')
@@ -30,10 +42,12 @@ export default async function AdminUsersPage() {
       .order('created_at', { ascending: false }),
   ]);
 
-  const rawMembers = (membersRes.data ?? []) as unknown as { id: string; role: string; user_id: string; profiles: { full_name: string; email: string }[] }[];
-  const members = rawMembers.map(m => ({
+  const profileByUserId = Object.fromEntries(
+    (profileRes.data ?? []).map((p) => [p.user_id, p]),
+  );
+  const members = (membersRes.data ?? []).map((m) => ({
     ...m,
-    profiles: Array.isArray(m.profiles) ? m.profiles[0] : m.profiles,
+    profiles: profileByUserId[m.user_id] ?? { full_name: '', email: '' },
   }));
   const invitations = invitationsRes.data ?? [];
   const pendingInvitations = invitations.filter((inv) => !inv.accepted_at);
