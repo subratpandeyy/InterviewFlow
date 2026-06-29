@@ -17,7 +17,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { CalendarConnections } from '@/components/admin/calendar-connections';
 import { getInterviewerTokens } from '@/lib/google/tokens';
-import { listUpcomingEvents } from '@/lib/google/calendar';
+import { listUpcomingEvents, getFreeBusySlots } from '@/lib/google/calendar';
 
 export const dynamic = 'force-dynamic';
 
@@ -141,12 +141,22 @@ export default async function AdminDashboard() {
       }
 
       let upcomingCount = 0;
+      let freeSlotCount = 0;
+      let nextFreeSlot: string | null = null;
       if (tokenBase.data) {
         const tokens = await getInterviewerTokens(m.profiles.id).catch(() => null);
         if (tokens) {
           try {
-            const events = await listUpcomingEvents(tokens.accessToken, tokens.refreshToken, tokens.calendarEmail, 5);
+            const [events, freeSlots] = await Promise.all([
+              listUpcomingEvents(tokens.accessToken, tokens.refreshToken, tokens.calendarEmail, 5),
+              getFreeBusySlots(tokens.accessToken, tokens.refreshToken, tokens.calendarEmail, 60, 30),
+            ]);
             upcomingCount = events.length;
+            freeSlotCount = freeSlots.length;
+            if (freeSlots.length > 0) {
+              const s = freeSlots[0];
+              nextFreeSlot = `${new Date(s.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} ${s.startTime}—${s.endTime}`;
+            }
           } catch {}
         }
       }
@@ -160,6 +170,8 @@ export default async function AdminDashboard() {
         lastSyncAt: meta?.last_sync_at ?? null,
         syncStatus: meta?.sync_status ?? null,
         upcomingCount,
+        freeSlotCount,
+        nextFreeSlot,
       };
     }),
   );

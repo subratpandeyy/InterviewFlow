@@ -13,6 +13,8 @@ interface CalendarConnection {
   lastSyncAt: string | null;
   syncStatus: string | null;
   upcomingCount: number;
+  freeSlotCount: number;
+  nextFreeSlot: string | null;
 }
 
 interface Props {
@@ -52,8 +54,10 @@ export function CalendarConnections({ connections }: Props) {
               <th className="text-left font-medium text-muted-foreground py-3 pr-4">Interviewer</th>
               <th className="text-left font-medium text-muted-foreground py-3 pr-4">Google Email</th>
               <th className="text-left font-medium text-muted-foreground py-3 pr-4">Status</th>
+              <th className="text-left font-medium text-muted-foreground py-3 pr-4">Free Slots</th>
+              <th className="text-left font-medium text-muted-foreground py-3 pr-4">Next Free</th>
               <th className="text-left font-medium text-muted-foreground py-3 pr-4">Last Sync</th>
-              <th className="text-left font-medium text-muted-foreground py-3">Upcoming Events</th>
+              <th className="text-left font-medium text-muted-foreground py-3">Events</th>
             </tr>
           </thead>
           <tbody>
@@ -82,6 +86,16 @@ export function CalendarConnections({ connections }: Props) {
                       Not Connected
                     </Badge>
                   )}
+                </td>
+                <td className="py-3 pr-4">
+                  {conn.connected ? (
+                    <span className="font-medium">{conn.freeSlotCount}</span>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
+                </td>
+                <td className="py-3 pr-4 text-muted-foreground text-xs">
+                  {conn.nextFreeSlot ?? '-'}
                 </td>
                 <td className="py-3 pr-4 text-muted-foreground">
                   {conn.lastSyncAt
