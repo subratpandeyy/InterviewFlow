@@ -23,9 +23,13 @@ export async function syncCalendar() {
 
   const admin = createAdmin();
 
-  await admin.from('google_calendar_tokens').update({
-    sync_status: 'syncing',
-  }).eq('profile_id', profile.id);
+  try {
+    await admin.from('google_calendar_tokens').update({
+      sync_status: 'syncing',
+    }).eq('profile_id', profile.id);
+  } catch {
+    // migration column sync_status may not exist yet
+  }
 
   try {
     const tokens = await getInterviewerTokens(profile.id);
@@ -38,11 +42,15 @@ export async function syncCalendar() {
       20,
     );
 
-    await admin.from('google_calendar_tokens').update({
-      last_sync_at: new Date().toISOString(),
-      sync_status: 'synced',
-      sync_error: null,
-    }).eq('profile_id', profile.id);
+    try {
+      await admin.from('google_calendar_tokens').update({
+        last_sync_at: new Date().toISOString(),
+        sync_status: 'synced',
+        sync_error: null,
+      }).eq('profile_id', profile.id);
+    } catch {
+      // migration columns may not exist yet
+    }
 
     revalidatePath('/interviewer/calendar');
     revalidatePath('/interviewer');
@@ -51,10 +59,14 @@ export async function syncCalendar() {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Sync failed';
 
-    await admin.from('google_calendar_tokens').update({
-      sync_status: 'error',
-      sync_error: message,
-    }).eq('profile_id', profile.id);
+    try {
+      await admin.from('google_calendar_tokens').update({
+        sync_status: 'error',
+        sync_error: message,
+      }).eq('profile_id', profile.id);
+    } catch {
+      // migration columns may not exist yet
+    }
 
     revalidatePath('/interviewer/calendar');
     throw new Error(message);
@@ -109,9 +121,21 @@ export async function checkCalendarConnectionHealth(): Promise<{
   const admin = createAdmin();
   const { data: tokenRow } = await admin
     .from('google_calendar_tokens')
-    .select('calendar_email, last_sync_at, sync_status, sync_error')
+    .select('calendar_email')
     .eq('profile_id', profile.id)
     .maybeSingle();
+
+  let meta: Record<string, string | null> | null = null;
+  try {
+    const { data: m } = await admin
+      .from('google_calendar_tokens')
+      .select('last_sync_at, sync_status, sync_error')
+      .eq('profile_id', profile.id)
+      .maybeSingle();
+    meta = m as Record<string, string | null> | null;
+  } catch {
+    // migration columns don't exist yet
+  }
 
   if (!tokenRow) {
     return { connected: false, healthy: false, message: 'No Google Calendar connected' };
@@ -124,8 +148,8 @@ export async function checkCalendarConnectionHealth(): Promise<{
       healthy: false,
       message: 'Failed to retrieve tokens. Try reconnecting.',
       email: tokenRow.calendar_email,
-      lastSync: tokenRow.last_sync_at,
-      syncStatus: tokenRow.sync_status,
+      lastSync: meta?.last_sync_at ?? undefined,
+      syncStatus: meta?.sync_status ?? undefined,
     };
   }
 
@@ -140,8 +164,8 @@ export async function checkCalendarConnectionHealth(): Promise<{
     healthy: health.healthy,
     message: health.message,
     email: tokenRow.calendar_email,
-    lastSync: tokenRow.last_sync_at,
-    syncStatus: tokenRow.sync_status,
+    lastSync: meta?.last_sync_at ?? undefined,
+    syncStatus: meta?.sync_status ?? undefined,
   };
 }
 
@@ -196,16 +220,28 @@ export async function getInterviewerCalendarStatus(interviewerId: string): Promi
   const admin = createAdmin();
   const { data: tokenRow } = await admin
     .from('google_calendar_tokens')
-    .select('calendar_email, last_sync_at, sync_status')
+    .select('calendar_email')
     .eq('profile_id', interviewerId)
     .maybeSingle();
 
   if (!tokenRow) return { connected: false };
 
+  let meta: Record<string, string | null> | null = null;
+  try {
+    const { data: m } = await admin
+      .from('google_calendar_tokens')
+      .select('last_sync_at, sync_status')
+      .eq('profile_id', interviewerId)
+      .maybeSingle();
+    meta = m as Record<string, string | null> | null;
+  } catch {
+    // migration columns don't exist yet
+  }
+
   return {
     connected: true,
     email: tokenRow.calendar_email,
-    lastSync: tokenRow.last_sync_at,
-    syncStatus: tokenRow.sync_status,
+    lastSync: meta?.last_sync_at ?? undefined,
+    syncStatus: meta?.sync_status ?? undefined,
   };
 }

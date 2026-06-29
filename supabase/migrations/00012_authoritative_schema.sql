@@ -460,15 +460,18 @@ end $$;
 -- Recreate all policies
 
 -- organizations: org members can view their org
+drop policy if exists "Users can view their own organization" on organizations;
 create policy "Users can view their own organization"
   on organizations for select
   using (id in (select get_user_organization_ids()));
 
 -- profiles: own profile + org-scoped view
+drop policy if exists "Users can view own profile" on profiles;
 create policy "Users can view own profile"
   on profiles for select
   using (user_id = auth.uid());
 
+drop policy if exists "Profiles are viewable within organization" on profiles;
 create policy "Profiles are viewable within organization"
   on profiles for select
   using (user_id in (
@@ -476,50 +479,61 @@ create policy "Profiles are viewable within organization"
     where organization_id in (select get_user_organization_ids())
   ));
 
+drop policy if exists "Users can update own profile" on profiles;
 create policy "Users can update own profile"
   on profiles for update
   using (user_id = auth.uid());
 
 -- organization_members
+drop policy if exists "Users can view own memberships" on organization_members;
 create policy "Users can view own memberships"
   on organization_members for select
   using (user_id = auth.uid());
 
+drop policy if exists "Admins can view org members" on organization_members;
 create policy "Admins can view org members"
   on organization_members for select
   using (organization_id in (select get_user_organization_ids()));
 
+drop policy if exists "Admins can insert members" on organization_members;
 create policy "Admins can insert members"
   on organization_members for insert
   with check (organization_id in (select get_user_organization_ids()));
 
+drop policy if exists "Admins can update members" on organization_members;
 create policy "Admins can update members"
   on organization_members for update
   using (organization_id in (select get_user_organization_ids()));
 
+drop policy if exists "Admins can delete members" on organization_members;
 create policy "Admins can delete members"
   on organization_members for delete
   using (organization_id in (select get_user_organization_ids()));
 
 -- invitations
+drop policy if exists "Invitations are publicly readable via token" on invitations;
 create policy "Invitations are publicly readable via token"
   on invitations for select
   using (true);
 
+drop policy if exists "Members manage invitations" on invitations;
 create policy "Members manage invitations"
   on invitations for all
   using (organization_id in (select get_user_organization_ids()));
 
 -- candidates: org-scoped, admin/recruiter CRUD
+drop policy if exists "Candidates are org-scoped" on candidates;
 create policy "Candidates are org-scoped"
   on candidates for all
   using (organization_id in (select get_user_organization_ids()));
 
+drop policy if exists "Admins manage candidates" on candidates;
 create policy "Admins manage candidates"
   on candidates for all
   using (organization_id in (select get_user_organization_ids()))
   with check (organization_id in (select get_user_organization_ids()));
 
+drop policy if exists "Recruiters manage candidates" on candidates;
 create policy "Recruiters manage candidates"
   on candidates for all
   using (organization_id in (
@@ -527,25 +541,30 @@ create policy "Recruiters manage candidates"
     where user_id = auth.uid() and role = 'recruiter'
   ));
 
+drop policy if exists "Candidates can read own record via token" on candidates;
 create policy "Candidates can read own record via token"
   on candidates for select
   using (true);
 
+drop policy if exists "Candidates can update own resume" on candidates;
 create policy "Candidates can update own resume"
   on candidates for update
   using (true)
   with check (true);
 
 -- positions: org-scoped
+drop policy if exists "Positions are org-scoped" on positions;
 create policy "Positions are org-scoped"
   on positions for all
   using (organization_id in (select get_user_organization_ids()));
 
+drop policy if exists "Admins manage positions" on positions;
 create policy "Admins manage positions"
   on positions for all
   using (organization_id in (select get_user_organization_ids()))
   with check (organization_id in (select get_user_organization_ids()));
 
+drop policy if exists "Recruiters manage positions" on positions;
 create policy "Recruiters manage positions"
   on positions for insert
   with check (organization_id in (
@@ -554,6 +573,7 @@ create policy "Recruiters manage positions"
   ));
 
 -- availability_slots
+drop policy if exists "Availability viewable within org" on availability_slots;
 create policy "Availability viewable within org"
   on availability_slots for select
   using (profile_id in (
@@ -563,18 +583,21 @@ create policy "Availability viewable within org"
     )
   ));
 
+drop policy if exists "Interviewers manage own availability" on availability_slots;
 create policy "Interviewers manage own availability"
   on availability_slots for insert
   with check (profile_id in (
     select id from profiles where user_id = auth.uid()
   ));
 
+drop policy if exists "Interviewers update own availability" on availability_slots;
 create policy "Interviewers update own availability"
   on availability_slots for update
   using (profile_id in (
     select id from profiles where user_id = auth.uid()
   ));
 
+drop policy if exists "Interviewers delete own availability" on availability_slots;
 create policy "Interviewers delete own availability"
   on availability_slots for delete
   using (profile_id in (
@@ -582,12 +605,14 @@ create policy "Interviewers delete own availability"
   ));
 
 -- interviewer_availability
+drop policy if exists "Interviewers manage own availability (date)" on interviewer_availability;
 create policy "Interviewers manage own availability (date)"
   on interviewer_availability for all
   using (interviewer_id in (
     select id from profiles where user_id = auth.uid()
   ));
 
+drop policy if exists "Org members can view availability" on interviewer_availability;
 create policy "Org members can view availability"
   on interviewer_availability for select
   using (interviewer_id in (
@@ -597,6 +622,7 @@ create policy "Org members can view availability"
     )
   ));
 
+drop policy if exists "Admins can manage org availability" on interviewer_availability;
 create policy "Admins can manage org availability"
   on interviewer_availability for all
   using (interviewer_id in (
@@ -608,32 +634,39 @@ create policy "Admins can manage org availability"
   ));
 
 -- interviews
+drop policy if exists "Interviews are org-scoped" on interviews;
 create policy "Interviews are org-scoped"
   on interviews for all
   using (organization_id in (select get_user_organization_ids()));
 
+drop policy if exists "Admins manage interviews" on interviews;
 create policy "Admins manage interviews"
   on interviews for all
   using (organization_id in (select get_user_organization_ids()))
   with check (organization_id in (select get_user_organization_ids()));
 
+drop policy if exists "Interviews are publicly readable via booking" on interviews;
 create policy "Interviews are publicly readable via booking"
   on interviews for select
   using (booking_token is not null);
 
 -- bookings — public token access
+drop policy if exists "Bookings are publicly readable via token" on bookings;
 create policy "Bookings are publicly readable via token"
   on bookings for select
   using (true);
 
+drop policy if exists "Bookings can be created via booking flow" on bookings;
 create policy "Bookings can be created via booking flow"
   on bookings for insert
   with check (true);
 
+drop policy if exists "Bookings can be updated via booking flow" on bookings;
 create policy "Bookings can be updated via booking flow"
   on bookings for update
   using (true);
 
+drop policy if exists "Bookings are org-scoped for admin management" on bookings;
 create policy "Bookings are org-scoped for admin management"
   on bookings for delete
   using (interview_id in (
@@ -643,12 +676,14 @@ create policy "Bookings are org-scoped for admin management"
   ));
 
 -- feedback (legacy)
+drop policy if exists "Feedback viewable within org" on feedback;
 create policy "Feedback viewable within org"
   on feedback for select
   using (interview_id in (
     select id from interviews where organization_id in (select get_user_organization_ids())
   ));
 
+drop policy if exists "Interviewers submit feedback" on feedback;
 create policy "Interviewers submit feedback"
   on feedback for insert
   with check (interviewer_id in (
@@ -656,12 +691,14 @@ create policy "Interviewers submit feedback"
   ));
 
 -- interview_feedback
+drop policy if exists "Interviewers manage own feedback" on interview_feedback;
 create policy "Interviewers manage own feedback"
   on interview_feedback for all
   using (interviewer_id in (
     select id from profiles where user_id = auth.uid()
   ));
 
+drop policy if exists "Feedback viewable within org (extended)" on interview_feedback;
 create policy "Feedback viewable within org (extended)"
   on interview_feedback for select
   using (interview_id in (
@@ -671,12 +708,14 @@ create policy "Feedback viewable within org (extended)"
   ));
 
 -- interview_meetings
+drop policy if exists "Meeting links viewable by org members" on interview_meetings;
 create policy "Meeting links viewable by org members"
   on interview_meetings for select
   using (interview_id in (
     select id from interviews where organization_id in (select get_user_organization_ids())
   ));
 
+drop policy if exists "Admins can manage meeting links" on interview_meetings;
 create policy "Admins can manage meeting links"
   on interview_meetings for insert
   with check (interview_id in (
@@ -684,12 +723,14 @@ create policy "Admins can manage meeting links"
   ));
 
 -- google_calendar_tokens
+drop policy if exists "Interviewers manage own calendar tokens" on google_calendar_tokens;
 create policy "Interviewers manage own calendar tokens"
   on google_calendar_tokens for all
   using (profile_id in (
     select id from profiles where user_id = auth.uid()
   ));
 
+drop policy if exists "Admins can view calendar tokens" on google_calendar_tokens;
 create policy "Admins can view calendar tokens"
   on google_calendar_tokens for select
   using (profile_id in (
@@ -701,16 +742,19 @@ create policy "Admins can view calendar tokens"
   ));
 
 -- notifications
+drop policy if exists "Notifications are org-scoped" on notifications;
 create policy "Notifications are org-scoped"
   on notifications for all
   using (organization_id in (select get_user_organization_ids()));
 
 -- audit logs
+drop policy if exists "Audit logs are org-scoped" on audit_logs;
 create policy "Audit logs are org-scoped"
   on audit_logs for select
   using (organization_id in (select get_user_organization_ids()));
 
 -- candidate_sessions
+drop policy if exists "Candidates can read own sessions" on candidate_sessions;
 create policy "Candidates can read own sessions"
   on candidate_sessions for select
   using (candidate_id in (
@@ -720,15 +764,69 @@ create policy "Candidates can read own sessions"
 -- ============================================================
 -- 7. REALTIME
 -- ============================================================
-alter publication supabase_realtime add table organization_members;
-alter publication supabase_realtime add table invitations;
-alter publication supabase_realtime add table candidates;
-alter publication supabase_realtime add table interviews;
-alter publication supabase_realtime add table interviewer_availability;
-alter publication supabase_realtime add table interview_meetings;
-alter publication supabase_realtime add table google_calendar_tokens;
-alter publication supabase_realtime add table interview_feedback;
-alter publication supabase_realtime add table candidate_sessions;
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'organization_members') then
+    alter publication supabase_realtime add table organization_members;
+  end if;
+end;
+$$;
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'invitations') then
+    alter publication supabase_realtime add table invitations;
+  end if;
+end;
+$$;
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'candidates') then
+    alter publication supabase_realtime add table candidates;
+  end if;
+end;
+$$;
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'interviews') then
+    alter publication supabase_realtime add table interviews;
+  end if;
+end;
+$$;
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'interviewer_availability') then
+    alter publication supabase_realtime add table interviewer_availability;
+  end if;
+end;
+$$;
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'interview_meetings') then
+    alter publication supabase_realtime add table interview_meetings;
+  end if;
+end;
+$$;
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'google_calendar_tokens') then
+    alter publication supabase_realtime add table google_calendar_tokens;
+  end if;
+end;
+$$;
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'interview_feedback') then
+    alter publication supabase_realtime add table interview_feedback;
+  end if;
+end;
+$$;
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'candidate_sessions') then
+    alter publication supabase_realtime add table candidate_sessions;
+  end if;
+end;
+$$;
 
 -- ============================================================
 -- 8. BACKFILL existing invitations (idempotent)

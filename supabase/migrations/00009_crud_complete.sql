@@ -80,12 +80,14 @@ create table if not exists interview_feedback (
 
 alter table interview_feedback enable row level security;
 
+drop policy if exists "Interviewers manage own feedback" on interview_feedback;
 create policy "Interviewers manage own feedback"
   on interview_feedback for all
   using (interviewer_id in (
     select id from profiles where user_id = auth.uid()
   ));
 
+drop policy if exists "Feedback viewable within org" on interview_feedback;
 create policy "Feedback viewable within org"
   on interview_feedback for select
   using (interview_id in (
@@ -97,7 +99,16 @@ create policy "Feedback viewable within org"
 create index if not exists idx_interview_feedback_interview on interview_feedback(interview_id);
 create index if not exists idx_interview_feedback_interviewer on interview_feedback(interviewer_id);
 
-alter publication supabase_realtime add table interview_feedback;
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'interview_feedback'
+  ) then
+    alter publication supabase_realtime add table interview_feedback;
+  end if;
+end;
+$$;
 
 drop trigger if exists update_interview_feedback_updated_at on interview_feedback;
 create trigger update_interview_feedback_updated_at

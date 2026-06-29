@@ -97,5 +97,13 @@ create policy "Interviewers manage own feedback"
 -- 5. Ensure realtime is enabled for candidate portal tables
 -- ============================================================
 
-alter publication supabase_realtime add table candidates;
-alter publication supabase_realtime add table candidate_sessions;
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'candidates') then
+    alter publication supabase_realtime add table candidates;
+  end if;
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'candidate_sessions') then
+    alter publication supabase_realtime add table candidate_sessions;
+  end if;
+end;
+$$;

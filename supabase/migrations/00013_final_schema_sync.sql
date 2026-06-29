@@ -163,7 +163,13 @@ create policy "Candidates can read own sessions"
   ));
 
 -- Realtime
-alter publication supabase_realtime add table candidate_sessions;
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'candidate_sessions') then
+    alter publication supabase_realtime add table candidate_sessions;
+  end if;
+end;
+$$;
 
 -- ============================================================
 -- 7. OTP function

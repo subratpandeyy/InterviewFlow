@@ -120,14 +120,28 @@ export default async function AdminDashboard() {
 
   const calendarConnections = await Promise.all(
     (interviewerMembers ?? []).map(async (m: any) => {
-      const tokenData = await admin
+      const tokenBase = await admin
         .from('google_calendar_tokens')
-        .select('calendar_email, last_sync_at, sync_status')
+        .select('calendar_email')
         .eq('profile_id', m.profiles.id)
         .maybeSingle();
 
+      let meta: Record<string, string | null> | null = null;
+      if (tokenBase.data) {
+        try {
+          const { data: m2 } = await admin
+            .from('google_calendar_tokens')
+            .select('last_sync_at, sync_status')
+            .eq('profile_id', m.profiles.id)
+            .maybeSingle();
+          meta = m2 as Record<string, string | null> | null;
+        } catch {
+          // migration columns don't exist yet
+        }
+      }
+
       let upcomingCount = 0;
-      if (tokenData.data) {
+      if (tokenBase.data) {
         const tokens = await getInterviewerTokens(m.profiles.id).catch(() => null);
         if (tokens) {
           try {
@@ -141,10 +155,10 @@ export default async function AdminDashboard() {
         profileId: m.profiles.id,
         fullName: m.profiles.full_name,
         email: m.profiles.email,
-        googleEmail: tokenData.data?.calendar_email ?? '',
-        connected: !!tokenData.data,
-        lastSyncAt: tokenData.data?.last_sync_at ?? null,
-        syncStatus: tokenData.data?.sync_status ?? null,
+        googleEmail: tokenBase.data?.calendar_email ?? '',
+        connected: !!tokenBase.data,
+        lastSyncAt: meta?.last_sync_at ?? null,
+        syncStatus: meta?.sync_status ?? null,
         upcomingCount,
       };
     }),

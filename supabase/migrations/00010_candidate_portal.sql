@@ -32,6 +32,7 @@ create table if not exists candidate_sessions (
 
 alter table candidate_sessions enable row level security;
 
+drop policy if exists "Candidates can read own sessions" on candidate_sessions;
 create policy "Candidates can read own sessions"
   on candidate_sessions for select
   using (candidate_id in (
