@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -61,9 +61,9 @@ export function AcceptInviteForm({ invitation }: AcceptInviteFormProps) {
             <Label htmlFor="password">Password</Label>
             <Input id="password" name="password" type="password" required minLength={6} />
           </div>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Creating account...' : 'Accept Invitation'}
-          </Button>
+          <LoadingButton type="submit" className="w-full" loading={loading} loadingText="Creating account...">
+            Accept Invitation
+          </LoadingButton>
         </CardContent>
       </form>
     </Card>

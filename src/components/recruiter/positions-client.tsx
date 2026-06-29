@@ -8,6 +8,7 @@ import { createPosition, updatePosition, deletePosition } from '@/lib/actions/re
 import { POSITION_STATUSES, EMPLOYMENT_TYPES } from '@/lib/constants';
 import type { Position } from '@/types';
 import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -166,13 +167,14 @@ export default function PositionsClient({ positions }: { positions: Position[] }
             <DialogClose render={<Button type="button" variant="outline" />}>
               Cancel
             </DialogClose>
-            <Button
+            <LoadingButton
               variant="destructive"
-              disabled={isDeletePending}
+              loading={isDeletePending}
+              loadingText="Deleting..."
               onClick={handleDelete}
             >
-              {isDeletePending ? 'Deleting...' : 'Delete'}
-            </Button>
+              Delete
+            </LoadingButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -353,9 +355,9 @@ export default function PositionsClient({ positions }: { positions: Position[] }
                     />
                   </div>
                   <div className="flex gap-2">
-                    <Button type="submit" className="flex-1" disabled={isUpdatePending}>
-                      {isUpdatePending ? 'Saving...' : 'Save Changes'}
-                    </Button>
+                    <LoadingButton type="submit" className="flex-1" loading={isUpdatePending} loadingText="Saving...">
+                      Save Changes
+                    </LoadingButton>
                     <Button type="button" variant="outline" onClick={handleCancelEdit}>
                       Cancel
                     </Button>
@@ -451,10 +453,10 @@ export default function PositionsClient({ positions }: { positions: Position[] }
                       onChange={(e) => setCreateData({ ...createData, skills: e.target.value })}
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={isCreatePending}>
+                  <LoadingButton type="submit" className="w-full" loading={isCreatePending} loadingText="Creating...">
                     <Plus className="h-4 w-4 mr-2" />
-                    {isCreatePending ? 'Creating...' : 'Create Position'}
-                  </Button>
+                    Create Position
+                  </LoadingButton>
                 </form>
               </CardContent>
             </Card>

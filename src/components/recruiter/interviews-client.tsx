@@ -8,10 +8,10 @@ import { updateInterview, deleteInterview } from '@/lib/actions/recruiter';
 import { updateMeetingLink } from '@/lib/actions/meetings';
 import { INTERVIEW_STATUSES, MEETING_PROVIDERS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -148,13 +148,14 @@ export default function InterviewsClient({ interviews, meetingsByInterview }: Pr
             <DialogClose render={<Button type="button" variant="outline" />}>
               Cancel
             </DialogClose>
-            <Button
+            <LoadingButton
               variant="destructive"
-              disabled={isDeletePending}
+              loading={isDeletePending}
+              loadingText="Deleting..."
               onClick={handleDelete}
             >
-              {isDeletePending ? 'Deleting...' : 'Delete'}
-            </Button>
+              Delete
+            </LoadingButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -254,9 +255,9 @@ export default function InterviewsClient({ interviews, meetingsByInterview }: Pr
                                 required
                               />
                             </div>
-                            <Button type="submit" size="sm" className="w-full text-xs">
+                            <LoadingButton type="submit" size="sm" className="w-full text-xs">
                               {existingMeeting ? 'Update' : 'Save'} Link
-                            </Button>
+                            </LoadingButton>
                           </form>
                         </details>
                       )}
@@ -375,9 +376,9 @@ export default function InterviewsClient({ interviews, meetingsByInterview }: Pr
                     </select>
                   </div>
                   <div className="flex gap-2">
-                    <Button type="submit" className="flex-1" disabled={isUpdatePending}>
-                      {isUpdatePending ? 'Saving...' : 'Save Changes'}
-                    </Button>
+                    <LoadingButton type="submit" className="flex-1" loading={isUpdatePending} loadingText="Saving...">
+                      Save Changes
+                    </LoadingButton>
                     <Button type="button" variant="outline" onClick={handleCancelEdit}>
                       Cancel
                     </Button>

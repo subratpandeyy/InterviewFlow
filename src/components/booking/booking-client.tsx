@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Badge } from '@/components/ui/badge';
 import { bookInterviewSlot } from '@/lib/actions/booking';
 import { toast } from 'sonner';
@@ -207,13 +207,15 @@ export function BookingClient({ interview, booking, availabilityByDate, isConfir
 
                 {availabilityByDate[selectedDate].length > 0 && (
                   <div className="mt-6">
-                    <Button
+                    <LoadingButton
                       onClick={handleConfirm}
-                      disabled={!selectedSlot || loading}
+                      disabled={!selectedSlot}
+                      loading={loading}
+                      loadingText="Confirming..."
                       className="w-full"
                     >
-                      {loading ? 'Confirming...' : 'Confirm Booking'}
-                    </Button>
+                      Confirm Booking
+                    </LoadingButton>
                   </div>
                 )}
               </CardContent>

@@ -99,6 +99,7 @@ export function Sidebar({ role }: SidebarProps) {
               <Link
                 key={route.href}
                 href={route.href}
+                prefetch={false}
                 onClick={() => setMobileOpen(false)}
                 className={cn(
                   'flex min-h-[44px] items-center gap-3 rounded-xl text-sm font-medium whitespace-nowrap transition-all',

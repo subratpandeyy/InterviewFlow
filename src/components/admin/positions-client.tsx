@@ -1,10 +1,11 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { PencilIcon, Trash2Icon, CheckIcon, XIcon, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -48,8 +49,10 @@ const STATUS_BADGE: Record<string, 'default' | 'success' | 'warning' | 'secondar
 
 export function PositionsClient({ positions }: PositionsClientProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [statusLoading, setStatusLoading] = useState<string | null>(null);
+  const [saveLoading, setSaveLoading] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, string>>({
     title: '',
     department: '',
@@ -64,9 +67,11 @@ export function PositionsClient({ positions }: PositionsClientProps) {
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this position?')) return;
 
+    setDeleteLoading(true);
     const formData = new FormData();
     formData.append('id', id);
     const result = await deletePosition(formData);
+    setDeleteLoading(false);
 
     if (result?.error) {
       toast.error(result.error);
@@ -77,10 +82,12 @@ export function PositionsClient({ positions }: PositionsClientProps) {
   };
 
   const handleStatusChange = async (id: string, status: string) => {
+    setStatusLoading(id);
     const formData = new FormData();
     formData.append('id', id);
     formData.append('status', status);
     const result = await updatePositionStatus(formData);
+    setStatusLoading(null);
 
     if (result?.error) {
       toast.error(result.error);
@@ -110,6 +117,7 @@ export function PositionsClient({ positions }: PositionsClientProps) {
   };
 
   const saveEdit = async (id: string) => {
+    setSaveLoading(true);
     const formData = new FormData();
     formData.append('id', id);
     formData.append('title', editForm.title);
@@ -122,6 +130,7 @@ export function PositionsClient({ positions }: PositionsClientProps) {
     formData.append('status', editForm.status || '');
 
     const result = await updatePosition(formData);
+    setSaveLoading(false);
 
     if (result?.error) {
       toast.error(result.error);
@@ -239,14 +248,14 @@ export function PositionsClient({ positions }: PositionsClientProps) {
               </TableCell>
               <TableCell>
                 <div className="flex gap-1">
-                  <Button
+                  <LoadingButton
                     size="icon-sm"
                     onClick={() => saveEdit(p.id)}
-                    disabled={isPending}
+                    loading={saveLoading}
                   >
                     <CheckIcon className="size-4" />
                     <span className="sr-only">Save</span>
-                  </Button>
+                  </LoadingButton>
                   <Button variant="ghost" size="icon-sm" onClick={cancelEdit}>
                     <XIcon className="size-4" />
                     <span className="sr-only">Cancel</span>
@@ -267,7 +276,8 @@ export function PositionsClient({ positions }: PositionsClientProps) {
                   <select
                     value={p.status}
                     onChange={(e) => handleStatusChange(p.id, e.target.value)}
-                    className="h-8 rounded-md border border-input bg-transparent px-2 py-1 text-xs"
+                    disabled={statusLoading === p.id}
+                    className="h-8 rounded-md border border-input bg-transparent px-2 py-1 text-xs disabled:opacity-50"
                     aria-label="Change status"
                   >
                     {STATUS_OPTIONS.map((s) => (
@@ -285,7 +295,7 @@ export function PositionsClient({ positions }: PositionsClientProps) {
                     <PencilIcon className="size-4" />
                     <span className="sr-only">Edit</span>
                   </Button>
-                  <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(p.id)}>
+                  <Button variant="ghost" size="icon-sm" disabled={deleteLoading} onClick={() => handleDelete(p.id)}>
                     <Trash2Icon className="size-4" />
                     <span className="sr-only">Delete</span>
                   </Button>

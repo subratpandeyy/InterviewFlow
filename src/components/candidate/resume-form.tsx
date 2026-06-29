@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
@@ -48,9 +48,9 @@ export function ResumeForm({ sessionToken }: ResumeFormProps) {
           required
         />
       </div>
-      <Button type="submit" disabled={loading}>
-        {loading ? 'Saving...' : 'Save'}
-      </Button>
+      <LoadingButton type="submit" loading={loading} loadingText="Saving...">
+        Save
+      </LoadingButton>
     </form>
   );
 }

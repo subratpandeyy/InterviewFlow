@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -113,13 +113,14 @@ export function CandidatePortalVerify({
             <div className="rounded-lg bg-accent/10 p-3 text-sm text-center text-accent">
               A verification code will be sent to <strong>{candidateEmail}</strong>
             </div>
-            <Button
+            <LoadingButton
               onClick={handleSendOtp}
-              disabled={sendingOtp}
+              loading={sendingOtp}
+              loadingText="Sending..."
               className="w-full"
             >
-              {sendingOtp ? 'Sending...' : 'Send Verification Code'}
-            </Button>
+              Send Verification Code
+            </LoadingButton>
           </div>
         ) : (
           <div className="space-y-4">
@@ -138,13 +139,14 @@ export function CandidatePortalVerify({
                 />
               ))}
             </div>
-            <Button
+            <LoadingButton
               onClick={handleVerifyOtp}
-              disabled={verifyingOtp}
+              loading={verifyingOtp}
+              loadingText="Verifying..."
               className="w-full"
             >
-              {verifyingOtp ? 'Verifying...' : 'Verify'}
-            </Button>
+              Verify
+            </LoadingButton>
             <div className="text-center">
               <button
                 onClick={handleResendOtp}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -54,9 +54,9 @@ export function InviteForm() {
               <option value="interviewer">Interviewer</option>
             </select>
           </div>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Sending...' : 'Send Invitation'}
-          </Button>
+          <LoadingButton type="submit" className="w-full" loading={loading} loadingText="Sending...">
+            Send Invitation
+          </LoadingButton>
         </CardContent>
       </form>
     </Card>

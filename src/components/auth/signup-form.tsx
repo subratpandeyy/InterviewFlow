@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -67,9 +67,9 @@ export function SignupForm() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-3">
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Creating...' : 'Create Organization'}
-          </Button>
+          <LoadingButton type="submit" className="w-full" loading={loading} loadingText="Creating...">
+            Create Organization
+          </LoadingButton>
           <p className="text-sm text-muted-foreground text-center">
             Already have an account?{' '}
             <Link href="/login" className="text-primary hover:underline">

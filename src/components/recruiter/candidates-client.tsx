@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Pencil, Trash2, Search, Users } from 'lucide-react';
 import { updateCandidate, deleteCandidate, updateCandidateStatus } from '@/lib/actions/recruiter';
 import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -279,9 +280,9 @@ export function CandidatesClient({ candidates }: CandidatesClientProps) {
                 <DialogClose render={<Button type="button" variant="outline" />}>
                   Cancel
                 </DialogClose>
-                <Button type="submit" disabled={editLoading}>
-                  {editLoading ? 'Saving...' : 'Save Changes'}
-                </Button>
+                <LoadingButton type="submit" loading={editLoading} loadingText="Saving...">
+                  Save Changes
+                </LoadingButton>
               </DialogFooter>
             </form>
           )}
@@ -300,13 +301,14 @@ export function CandidatesClient({ candidates }: CandidatesClientProps) {
             <DialogClose render={<Button type="button" variant="outline" />}>
               Cancel
             </DialogClose>
-            <Button
+            <LoadingButton
               variant="destructive"
-              disabled={deleteLoading}
+              loading={deleteLoading}
+              loadingText="Deleting..."
               onClick={handleDelete}
             >
-              {deleteLoading ? 'Deleting...' : 'Delete'}
-            </Button>
+              Delete
+            </LoadingButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>

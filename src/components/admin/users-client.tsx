@@ -3,11 +3,12 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { XIcon, Users } from 'lucide-react';
+import { XIcon, Users, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import {
   Table,
   TableBody,
@@ -55,6 +56,7 @@ const ROLE_LABELS: Record<string, string> = {
 export function UsersClient({ members, pendingInvitations, acceptedInvitations, currentUserId }: UsersClientProps) {
   const router = useRouter();
   const [loadingMember, setLoadingMember] = useState<string | null>(null);
+  const [loadingInvitation, setLoadingInvitation] = useState<string | null>(null);
 
   const handleRemove = async (memberId: string) => {
     if (!window.confirm('Are you sure you want to remove this member?')) return;
@@ -90,9 +92,11 @@ export function UsersClient({ members, pendingInvitations, acceptedInvitations, 
   };
 
   const handleRevoke = async (invitationId: string) => {
+    setLoadingInvitation(invitationId);
     const formData = new FormData();
     formData.append('id', invitationId);
     const result = await revokeInvitation(formData);
+    setLoadingInvitation(null);
 
     if (result?.error) {
       toast.error(result.error);
@@ -103,9 +107,11 @@ export function UsersClient({ members, pendingInvitations, acceptedInvitations, 
   };
 
   const handleResend = async (invitationId: string) => {
+    setLoadingInvitation(invitationId);
     const formData = new FormData();
     formData.append('id', invitationId);
     const result = await resendInvitation(formData);
+    setLoadingInvitation(null);
 
     if (result?.error) {
       toast.error(result.error);
@@ -196,7 +202,11 @@ export function UsersClient({ members, pendingInvitations, acceptedInvitations, 
                               disabled={loadingMember === m.id}
                               onClick={() => handleRemove(m.id)}
                             >
-                              <XIcon className="size-4" />
+                              {loadingMember === m.id ? (
+                                <Loader2 className="size-4 animate-spin" />
+                              ) : (
+                                <XIcon className="size-4" />
+                              )}
                               <span className="sr-only">Remove</span>
                             </Button>
                           )}
@@ -226,12 +236,12 @@ export function UsersClient({ members, pendingInvitations, acceptedInvitations, 
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">Pending</Badge>
-                      <Button variant="outline" size="sm" onClick={() => handleResend(inv.id)}>
+                      <LoadingButton variant="outline" size="sm" loading={loadingInvitation === inv.id} onClick={() => handleResend(inv.id)}>
                         Resend
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleRevoke(inv.id)}>
+                      </LoadingButton>
+                      <LoadingButton variant="outline" size="sm" loading={loadingInvitation === inv.id} onClick={() => handleRevoke(inv.id)}>
                         Revoke
-                      </Button>
+                      </LoadingButton>
                     </div>
                   </div>
                 ))}

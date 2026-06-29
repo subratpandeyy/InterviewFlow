@@ -3,9 +3,10 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { Pencil, Lock, X, Loader2 } from 'lucide-react';
+import { Pencil, Lock, X } from 'lucide-react';
 import { editFeedback, finalizeFeedback } from '@/lib/actions/interviewer';
 import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -129,19 +130,15 @@ export function FeedbackClient({ feedbacks, interviews }: FeedbackClientProps) {
                         </Button>
                       )}
                       {!fb.is_finalized && (
-                        <Button
+                        <LoadingButton
                           variant="outline"
                           size="sm"
+                          loading={isPending && finalizingId === fb.id}
                           onClick={() => handleFinalize(fb.id)}
-                          disabled={isPending && finalizingId === fb.id}
                         >
-                          {isPending && finalizingId === fb.id ? (
-                            <Loader2 className="size-3.5 mr-1 animate-spin" />
-                          ) : (
-                            <Lock className="size-3.5 mr-1" />
-                          )}
+                          <Lock className="size-3.5 mr-1" />
                           Finalize
-                        </Button>
+                        </LoadingButton>
                       )}
                     </div>
                   </>
@@ -231,12 +228,9 @@ export function FeedbackClient({ feedbacks, interviews }: FeedbackClientProps) {
                     </div>
 
                     <div className="flex gap-2">
-                      <Button type="submit" size="sm" disabled={isPending}>
-                        {isPending ? (
-                          <Loader2 className="size-3.5 mr-1 animate-spin" />
-                        ) : null}
+                      <LoadingButton type="submit" size="sm" loading={isPending}>
                         Save
-                      </Button>
+                      </LoadingButton>
                       <Button
                         type="button"
                         variant="ghost"
