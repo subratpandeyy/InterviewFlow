@@ -5,11 +5,18 @@ export const SCOPES = [
   'https://www.googleapis.com/auth/calendar.events',
 ];
 
+const REDIRECT_PATH = '/auth/google/callback';
+
+function getRedirectUri() {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  return `${siteUrl.replace(/\/$/, '')}${REDIRECT_PATH}`;
+}
+
 export function getOAuth2Client() {
   return new google.auth.OAuth2(
     process.env.GOOGLE_CALENDAR_CLIENT_ID,
     process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
-    `${process.env.NEXT_PUBLIC_SITE_URL}/auth/google/callback`,
+    getRedirectUri(),
   );
 }
 
