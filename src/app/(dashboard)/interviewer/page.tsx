@@ -168,8 +168,8 @@ export default async function InterviewerDashboard() {
             <CardTitle>Calendar Sync</CardTitle>
           </CardHeader>
           <CardContent>
-            <Link href="/interviewer/availability" className="text-sm text-accent hover:underline mb-4 block">
-              Manage availability →
+            <Link href="/interviewer/calendar" className="text-sm text-accent hover:underline mb-4 block">
+              Manage Calendar →
             </Link>
             {isCalendarConnected ? (
               <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-4">

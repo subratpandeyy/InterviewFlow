@@ -60,7 +60,7 @@ export const DASHBOARD_ROUTES: Record<string, { label: string; href: string }[]>
   interviewer: [
     { label: 'Dashboard', href: '/interviewer' },
     { label: 'Upcoming', href: '/interviewer/upcoming' },
-    { label: 'Availability', href: '/interviewer/availability' },
+    { label: 'Calendar', href: '/interviewer/calendar' },
     { label: 'Feedback', href: '/interviewer/feedback' },
   ],
 };

@@ -6,13 +6,14 @@ import { createAdmin } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
 import { getInterviewerTokens } from '@/lib/google/tokens';
 import { createCalendarEvent } from '@/lib/google/calendar';
+import { notifyInterviewScheduled } from '@/lib/notifications';
 
 export async function bookInterviewSlot(interviewId: string, date: string, startTime: string, token: string) {
   const admin = createAdmin();
 
   const { data: interview } = await admin
     .from('interviews')
-    .select('*, candidate:candidates(*), booking:bookings(*)')
+    .select('*, candidate:candidates(*), booking:bookings(*), interviewer:profiles!interviewer_id(*), position:positions(*)')
     .eq('id', interviewId)
     .single();
 
@@ -37,14 +38,80 @@ export async function bookInterviewSlot(interviewId: string, date: string, start
       googleTokens.calendarEmail,
       {
         summary: `Interview: ${interview.candidate?.full_name || 'Candidate'}`,
-        description: `Interview with ${interview.candidate?.full_name || 'Candidate'} (${interview.candidate?.email || ''})`,
+        description: `Interview with ${interview.candidate?.full_name || 'Candidate'} (${interview.candidate?.email || ''})\nPosition: ${interview.position?.title || interview.notes || ''}`,
         startTime: startDateTime,
         endTime: endDateTime,
         attendeeEmails: [interview.candidate?.email].filter(Boolean) as string[],
       },
     );
 
-    const meetingLink = event.hangoutLink || `https://meet.google.com/new`;
+    const meetingLink = event.hangoutLink || '';
+    const meetingProvider = 'google_meet';
+
+    const { error: interviewError } = await admin
+      .from('interviews')
+      .update({
+        scheduled_at: scheduledAt,
+        meeting_link: meetingLink,
+        meeting_provider: meetingProvider,
+        status: 'scheduled',
+        calendar_event_id: event.id || null,
+        calendar_id: googleTokens.calendarEmail,
+      })
+      .eq('id', interviewId);
+
+    if (interviewError) throw new Error(interviewError.message);
+
+    if (meetingLink) {
+      const { error: meetingError } = await admin.from('interview_meetings').insert({
+        interview_id: interviewId,
+        provider: meetingProvider,
+        meeting_url: meetingLink,
+      });
+      if (meetingError) throw new Error(meetingError.message);
+    }
+
+    const { error: bookingError } = await admin
+      .from('bookings')
+      .update({ status: 'booked' })
+      .eq('token', token);
+
+    if (bookingError) throw new Error(bookingError.message);
+
+    const formattedDate = startDateTime.toLocaleString();
+    const candidateName = interview.candidate?.full_name || 'Candidate';
+    const candidateEmail = interview.candidate?.email || '';
+    const interviewerEmail = interview.interviewer?.email || '';
+
+    if (candidateEmail) {
+      await sendEmail({
+        to: candidateEmail,
+        subject: 'Interview Confirmed',
+        html: `
+          <h1>Interview Confirmed</h1>
+          <p>Your interview has been booked successfully.</p>
+          <p><strong>Date & Time:</strong> ${formattedDate}</p>
+          <p><strong>Interviewer:</strong> ${interview.interviewer?.full_name || 'TBD'}</p>
+          <p><strong>Meeting Link:</strong> <a href="${meetingLink}">${meetingLink}</a></p>
+          <p>Please keep this link safe. You will need it to join the interview.</p>
+        `,
+      });
+    }
+
+    await notifyInterviewScheduled({
+      organizationId: interview.organization_id,
+      candidateEmail,
+      candidateName,
+      interviewerId: interview.interviewer_id,
+      interviewerEmail,
+      interviewDate: formattedDate,
+      meetingLink,
+    });
+
+    revalidatePath(`/book/${token}`);
+    redirect(`/book/${token}?confirmed=true`);
+  } else {
+    const meetingLink = `https://meet.google.com/new`;
     const meetingProvider = 'google_meet';
 
     const { error: interviewError } = await admin
@@ -75,84 +142,6 @@ export async function bookInterviewSlot(interviewId: string, date: string, start
     if (bookingError) throw new Error(bookingError.message);
 
     const formattedDate = startDateTime.toLocaleString();
-
-    if (interview.candidate?.email) {
-      await sendEmail({
-        to: interview.candidate.email,
-        subject: 'Interview Confirmed',
-        html: `
-          <h1>Interview Confirmed</h1>
-          <p>Your interview has been booked successfully.</p>
-          <p><strong>Date & Time:</strong> ${formattedDate}</p>
-          <p><strong>Meeting Link:</strong> <a href="${meetingLink}">${meetingLink}</a></p>
-          <p>Please keep this link safe. You will need it to join the interview.</p>
-        `,
-      });
-    }
-
-    revalidatePath(`/book/${token}`);
-    redirect(`/book/${token}?confirmed=true`);
-  } else {
-    const { data: availabilitySlot } = await admin
-      .from('interviewer_availability')
-      .select('id')
-      .eq('interviewer_id', interview.interviewer_id)
-      .eq('date', date)
-      .eq('start_time', startTime)
-      .eq('status', 'available')
-      .single();
-
-    if (!availabilitySlot) {
-      throw new Error('This slot is no longer available. Please select another time.');
-    }
-
-    const { error: updateSlotError } = await admin
-      .from('interviewer_availability')
-      .update({ status: 'booked' })
-      .eq('id', availabilitySlot.id);
-
-    if (updateSlotError) throw new Error(updateSlotError.message);
-
-    const meetingProvider = 'google_meet';
-    const meetingLink = `https://meet.google.com/new`;
-
-    const { error: interviewError } = await admin
-      .from('interviews')
-      .update({
-        scheduled_at: scheduledAt,
-        meeting_link: meetingLink,
-        meeting_provider: meetingProvider,
-        status: 'scheduled',
-      })
-      .eq('id', interviewId);
-
-    if (interviewError) {
-      await admin.from('interviewer_availability').update({ status: 'available' }).eq('id', availabilitySlot.id);
-      throw new Error(interviewError.message);
-    }
-
-    const { error: meetingError } = await admin.from('interview_meetings').insert({
-      interview_id: interviewId,
-      provider: meetingProvider,
-      meeting_url: meetingLink,
-    });
-
-    if (meetingError) {
-      await admin.from('interviewer_availability').update({ status: 'available' }).eq('id', availabilitySlot.id);
-      throw new Error(meetingError.message);
-    }
-
-    const { error: bookingError } = await admin
-      .from('bookings')
-      .update({ status: 'booked' })
-      .eq('token', token);
-
-    if (bookingError) {
-      await admin.from('interviewer_availability').update({ status: 'available' }).eq('id', availabilitySlot.id);
-      throw new Error(bookingError.message);
-    }
-
-    const formattedDate = new Date(scheduledAt).toLocaleString();
 
     if (interview.candidate?.email) {
       await sendEmail({

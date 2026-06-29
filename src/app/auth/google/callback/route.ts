@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       error,
       hasCode: !!code,
     });
-    return NextResponse.redirect(new URL('/interviewer/availability?error=google_auth_denied', request.url));
+    return NextResponse.redirect(new URL('/interviewer/calendar?error=google_auth_denied', request.url));
   }
 
   try {
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     }
     if (!profile) {
       console.error('[google/callback] No profile found for user', { userId: user.id });
-      return NextResponse.redirect(new URL('/interviewer/availability?error=profile_not_found', request.url));
+      return NextResponse.redirect(new URL('/interviewer/calendar?error=profile_not_found', request.url));
     }
 
     const tokens = await getTokensFromCode(code);
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
         hasRefreshToken: !!tokens.refresh_token,
         hasExpiryDate: !!tokens.expiry_date,
       });
-      return NextResponse.redirect(new URL('/interviewer/availability?error=missing_tokens', request.url));
+      return NextResponse.redirect(new URL('/interviewer/calendar?error=missing_tokens', request.url));
     }
 
     // Fetch the calendar email via the Google OAuth2 userinfo endpoint.
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
         hint: upsertError.hint,
         code: upsertError.code,
       });
-      return NextResponse.redirect(new URL('/interviewer/availability?error=save_failed', request.url));
+      return NextResponse.redirect(new URL('/interviewer/calendar?error=save_failed', request.url));
     }
 
     console.log('[google/callback] Calendar tokens stored successfully', {
@@ -111,14 +111,14 @@ export async function GET(request: NextRequest) {
       calendarEmail,
     });
 
-    return NextResponse.redirect(new URL('/interviewer/availability?connected=true', request.url));
+    return NextResponse.redirect(new URL('/interviewer/calendar?connected=true', request.url));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const stack = err instanceof Error ? err.stack : undefined;
     console.error('[google/callback] Unhandled exception in OAuth callback', { message, stack });
     return NextResponse.redirect(
       new URL(
-        `/interviewer/availability?error=auth_failed&detail=${encodeURIComponent(message)}`,
+        `/interviewer/calendar?error=auth_failed&detail=${encodeURIComponent(message)}`,
         request.url,
       ),
     );

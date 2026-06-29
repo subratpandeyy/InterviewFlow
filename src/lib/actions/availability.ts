@@ -164,5 +164,5 @@ export async function disconnectGoogleCalendar() {
     .eq('profile_id', profile.id);
 
   if (error) throw new Error(error.message);
-  revalidatePath('/interviewer/availability');
+  revalidatePath('/interviewer/calendar');
 }

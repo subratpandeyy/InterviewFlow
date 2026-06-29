@@ -3,7 +3,11 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createServer } from '@/lib/supabase/server';
+import { createAdmin } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
+import { getInterviewerTokens } from '@/lib/google/tokens';
+import { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from '@/lib/google/calendar';
+import { notifyInterviewScheduled, notifyInterviewRescheduled, notifyInterviewCancelled } from '@/lib/notifications';
 import type { CandidateStatus, PositionStatus } from '@/types';
 
 export async function createCandidate(formData: FormData) {
@@ -139,6 +143,230 @@ export async function createInterview(formData: FormData) {
   revalidatePath('/recruiter/scheduling');
 
   redirect(`/recruiter/interviews?token=${token}`);
+}
+
+export async function updateInterview(formData: FormData) {
+  const supabase = await createServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Unauthorized' };
+
+  const { data: membership } = await supabase
+    .from('organization_members')
+    .select('role')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!membership || (membership.role !== 'recruiter' && membership.role !== 'organization_admin'))
+    return { error: 'Unauthorized' };
+
+  const id = formData.get('id') as string;
+  if (!id) return { error: 'Interview ID is required' };
+
+  const newStatus = formData.get('status') as string || null;
+  const newScheduledAt = formData.get('scheduled_at') as string || null;
+
+  const admin = createAdmin();
+  const { data: interview } = await admin
+    .from('interviews')
+    .select('*, candidate:candidates(*), interviewer:profiles!interviewer_id(*)')
+    .eq('id', id)
+    .single();
+
+  if (!interview) return { error: 'Interview not found' };
+
+  const oldScheduledAt = interview.scheduled_at;
+  const isStatusChangeToCancelled = newStatus === 'cancelled' && interview.status !== 'cancelled';
+  const isTimeChange = newScheduledAt && oldScheduledAt && newScheduledAt !== oldScheduledAt;
+
+  const { error } = await supabase
+    .from('interviews')
+    .update({
+      scheduled_at: newScheduledAt,
+      status: newStatus,
+      notes: formData.get('notes') as string || null,
+      meeting_link: formData.get('meeting_link') as string || null,
+      meeting_provider: formData.get('meeting_provider') as string || null,
+    })
+    .eq('id', id);
+
+  if (error) return { error: error.message };
+
+  const googleTokens = await getInterviewerTokens(interview.interviewer_id);
+
+  if (googleTokens) {
+    try {
+      if (isStatusChangeToCancelled && interview.calendar_event_id) {
+        await deleteCalendarEvent(
+          googleTokens.accessToken,
+          googleTokens.refreshToken,
+          googleTokens.calendarEmail,
+          interview.calendar_event_id,
+        );
+
+        await admin.from('interviews').update({
+          calendar_event_id: null,
+          calendar_id: null,
+        }).eq('id', id);
+
+        const candidateName = interview.candidate?.full_name || 'Candidate';
+        await notifyInterviewCancelled({
+          organizationId: interview.organization_id,
+          candidateEmail: interview.candidate?.email || '',
+          candidateName,
+          interviewerId: interview.interviewer_id,
+          interviewerEmail: interview.interviewer?.email || '',
+        });
+      } else if (isTimeChange && interview.calendar_event_id) {
+        const startDateTime = new Date(newScheduledAt!);
+        const endDateTime = new Date(startDateTime.getTime() + (interview.duration_minutes || 60) * 60 * 1000);
+
+        await updateCalendarEvent(
+          googleTokens.accessToken,
+          googleTokens.refreshToken,
+          googleTokens.calendarEmail,
+          interview.calendar_event_id,
+          {
+            startTime: startDateTime,
+            endTime: endDateTime,
+          },
+        );
+
+        const formattedOld = new Date(oldScheduledAt!).toLocaleString();
+        const formattedNew = new Date(newScheduledAt!).toLocaleString();
+        const meetingLink = interview.meeting_link || '';
+
+        await notifyInterviewRescheduled({
+          organizationId: interview.organization_id,
+          candidateEmail: interview.candidate?.email || '',
+          candidateName: interview.candidate?.full_name || 'Candidate',
+          interviewerId: interview.interviewer_id,
+          interviewerEmail: interview.interviewer?.email || '',
+          oldDate: formattedOld,
+          newDate: formattedNew,
+          meetingLink,
+        });
+      } else if (newStatus === 'scheduled' && newScheduledAt && !interview.calendar_event_id) {
+        const startDateTime = new Date(newScheduledAt);
+        const endDateTime = new Date(startDateTime.getTime() + (interview.duration_minutes || 60) * 60 * 1000);
+
+        const event = await createCalendarEvent(
+          googleTokens.accessToken,
+          googleTokens.refreshToken,
+          googleTokens.calendarEmail,
+          {
+            summary: `Interview: ${interview.candidate?.full_name || 'Candidate'}`,
+            description: `Interview with ${interview.candidate?.full_name || 'Candidate'} (${interview.candidate?.email || ''})\nPosition: ${interview.notes || ''}`,
+            startTime: startDateTime,
+            endTime: endDateTime,
+            attendeeEmails: [interview.candidate?.email].filter(Boolean) as string[],
+          },
+        );
+
+        const meetingLink = event.hangoutLink || interview.meeting_link || '';
+
+        await admin.from('interviews').update({
+          calendar_event_id: event.id || null,
+          calendar_id: googleTokens.calendarEmail,
+          meeting_link: meetingLink,
+          meeting_provider: 'google_meet',
+        }).eq('id', id);
+
+        if (meetingLink) {
+          await admin.from('interview_meetings').insert({
+            interview_id: id,
+            provider: 'google_meet',
+            meeting_url: meetingLink,
+          });
+        }
+
+        const formattedDate = startDateTime.toLocaleString();
+        await notifyInterviewScheduled({
+          organizationId: interview.organization_id,
+          candidateEmail: interview.candidate?.email || '',
+          candidateName: interview.candidate?.full_name || 'Candidate',
+          interviewerId: interview.interviewer_id,
+          interviewerEmail: interview.interviewer?.email || '',
+          interviewDate: formattedDate,
+          meetingLink,
+        });
+      }
+    } catch (err) {
+      console.error('[recruiter] Calendar sync failed:', err);
+    }
+  } else if (isStatusChangeToCancelled) {
+    const candidateName = interview.candidate?.full_name || 'Candidate';
+    await notifyInterviewCancelled({
+      organizationId: interview.organization_id,
+      candidateEmail: interview.candidate?.email || '',
+      candidateName,
+      interviewerId: interview.interviewer_id,
+      interviewerEmail: interview.interviewer?.email || '',
+    });
+  }
+
+  revalidatePath('/recruiter/interviews');
+  return { success: true };
+}
+
+export async function deleteInterview(formData: FormData) {
+  const supabase = await createServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Unauthorized' };
+
+  const { data: membership } = await supabase
+    .from('organization_members')
+    .select('role')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!membership || (membership.role !== 'recruiter' && membership.role !== 'organization_admin'))
+    return { error: 'Unauthorized' };
+
+  const id = formData.get('id') as string;
+  if (!id) return { error: 'Interview ID is required' };
+
+  const admin = createAdmin();
+  const { data: interview } = await admin
+    .from('interviews')
+    .select('*, candidate:candidates(*), interviewer:profiles!interviewer_id(*)')
+    .eq('id', id)
+    .single();
+
+  if (interview?.calendar_event_id) {
+    const googleTokens = await getInterviewerTokens(interview.interviewer_id);
+    if (googleTokens) {
+      try {
+        await deleteCalendarEvent(
+          googleTokens.accessToken,
+          googleTokens.refreshToken,
+          googleTokens.calendarEmail,
+          interview.calendar_event_id,
+        );
+      } catch (err) {
+        console.error('[recruiter] Failed to delete calendar event:', err);
+      }
+    }
+  }
+
+  const { error } = await supabase
+    .from('interviews')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id);
+
+  if (error) return { error: error.message };
+
+  if (interview) {
+    await notifyInterviewCancelled({
+      organizationId: interview.organization_id,
+      candidateEmail: interview.candidate?.email || '',
+      candidateName: interview.candidate?.full_name || 'Candidate',
+      interviewerId: interview.interviewer_id,
+      interviewerEmail: interview.interviewer?.email || '',
+    });
+  }
+
+  revalidatePath('/recruiter/interviews');
+  return { success: true };
 }
 
 export async function createPosition(formData: FormData) {
@@ -320,66 +548,6 @@ export async function deletePosition(formData: FormData) {
   if (error) return { error: error.message };
   revalidatePath('/recruiter/positions');
   revalidatePath('/admin/positions');
-  return { success: true };
-}
-
-export async function updateInterview(formData: FormData) {
-  const supabase = await createServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'Unauthorized' };
-
-  const { data: membership } = await supabase
-    .from('organization_members')
-    .select('role')
-    .eq('user_id', user.id)
-    .single();
-
-  if (!membership || (membership.role !== 'recruiter' && membership.role !== 'organization_admin'))
-    return { error: 'Unauthorized' };
-
-  const id = formData.get('id') as string;
-  if (!id) return { error: 'Interview ID is required' };
-
-  const { error } = await supabase
-    .from('interviews')
-    .update({
-      scheduled_at: formData.get('scheduled_at') as string || null,
-      status: formData.get('status') as string || null,
-      notes: formData.get('notes') as string || null,
-      meeting_link: formData.get('meeting_link') as string || null,
-      meeting_provider: formData.get('meeting_provider') as string || null,
-    })
-    .eq('id', id);
-
-  if (error) return { error: error.message };
-  revalidatePath('/recruiter/interviews');
-  return { success: true };
-}
-
-export async function deleteInterview(formData: FormData) {
-  const supabase = await createServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'Unauthorized' };
-
-  const { data: membership } = await supabase
-    .from('organization_members')
-    .select('role')
-    .eq('user_id', user.id)
-    .single();
-
-  if (!membership || (membership.role !== 'recruiter' && membership.role !== 'organization_admin'))
-    return { error: 'Unauthorized' };
-
-  const id = formData.get('id') as string;
-  if (!id) return { error: 'Interview ID is required' };
-
-  const { error } = await supabase
-    .from('interviews')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', id);
-
-  if (error) return { error: error.message };
-  revalidatePath('/recruiter/interviews');
   return { success: true };
 }
 

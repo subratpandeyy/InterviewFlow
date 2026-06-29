@@ -15,6 +15,9 @@ import { Users, Briefcase, Calendar, UserCheck, ArrowUpRight } from 'lucide-reac
 import Link from 'next/link';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { CalendarConnections } from '@/components/admin/calendar-connections';
+import { getInterviewerTokens } from '@/lib/google/tokens';
+import { listUpcomingEvents } from '@/lib/google/calendar';
 
 export const dynamic = 'force-dynamic';
 
@@ -108,6 +111,44 @@ export default async function AdminDashboard() {
   const availability = availabilityRes.data ?? [];
   const upcomingCount = upcomingCountRes.count ?? allInterviews.length;
   const totalInterviewCount = totalInterviewCountRes.count ?? 0;
+
+  const { data: interviewerMembers } = await admin
+    .from('organization_members')
+    .select('*, profiles!inner(*)')
+    .eq('organization_id', membership.organization_id)
+    .eq('role', 'interviewer');
+
+  const calendarConnections = await Promise.all(
+    (interviewerMembers ?? []).map(async (m: any) => {
+      const tokenData = await admin
+        .from('google_calendar_tokens')
+        .select('calendar_email, last_sync_at, sync_status')
+        .eq('profile_id', m.profiles.id)
+        .maybeSingle();
+
+      let upcomingCount = 0;
+      if (tokenData.data) {
+        const tokens = await getInterviewerTokens(m.profiles.id).catch(() => null);
+        if (tokens) {
+          try {
+            const events = await listUpcomingEvents(tokens.accessToken, tokens.refreshToken, tokens.calendarEmail, 5);
+            upcomingCount = events.length;
+          } catch {}
+        }
+      }
+
+      return {
+        profileId: m.profiles.id,
+        fullName: m.profiles.full_name,
+        email: m.profiles.email,
+        googleEmail: tokenData.data?.calendar_email ?? '',
+        connected: !!tokenData.data,
+        lastSyncAt: tokenData.data?.last_sync_at ?? null,
+        syncStatus: tokenData.data?.sync_status ?? null,
+        upcomingCount,
+      };
+    }),
+  );
 
   const interviewTypeLabels: Record<string, string> = {
     hr: 'HR Round', technical: 'Technical Round', managerial: 'Managerial Round', final: 'Final Round',
@@ -297,6 +338,8 @@ export default async function AdminDashboard() {
           </CardContent>
         </Card>
       )}
+
+      <CalendarConnections connections={calendarConnections} />
     </div>
   );
 }

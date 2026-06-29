@@ -21,16 +21,21 @@ function redirectWithCookies(
   return dest;
 }
 
+function shouldHandle(pathname: string): boolean {
+  return protectedRoutes.some((r) => pathname.startsWith(r)) ||
+    publicRoutes.some((r) => pathname === r) ||
+    pathname.startsWith('/book/') ||
+    pathname.startsWith('/invite/') ||
+    pathname.startsWith('/portal/') ||
+    pathname.startsWith('/auth/');
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname, origin } = request.nextUrl;
 
-  const isProtected = protectedRoutes.some((route) =>
-    pathname.startsWith(route),
-  );
-  const isPublic = publicRoutes.some((route) => pathname === route);
-  const isBooking = pathname.startsWith('/book/');
-  const isInvite = pathname.startsWith('/invite/');
-  const isPortal = pathname.startsWith('/portal/');
+  if (!shouldHandle(pathname)) {
+    return NextResponse.next();
+  }
 
   const response = NextResponse.next({ request: { headers: request.headers } });
 
@@ -51,29 +56,49 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const isBooking = pathname.startsWith('/book/');
+  const isInvite = pathname.startsWith('/invite/');
+  const isPortal = pathname.startsWith('/portal/');
+  const isAuth = pathname.startsWith('/auth/');
+  const isProtected = protectedRoutes.some((route) => pathname.startsWith(route));
+  const isPublic = publicRoutes.some((route) => pathname === route);
 
-  // Allow booking, invite, and portal pages for everyone
-  if (isBooking || isInvite || isPortal) {
+  // Allow booking, invite, portal, and auth pages for everyone
+  if (isBooking || isInvite || isPortal || isAuth) {
     return response;
   }
 
-  // Protected route without a valid session → login
-  if (isProtected && !user) {
-    const loginUrl = new URL('/login', origin);
-    loginUrl.searchParams.set('redirect', pathname);
-    return redirectWithCookies(loginUrl, response);
+  // Fast local check first — avoids getUser() network call when there's no session
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session) {
+    if (isProtected) {
+      const loginUrl = new URL('/login', origin);
+      loginUrl.searchParams.set('redirect', pathname);
+      return redirectWithCookies(loginUrl, response);
+    }
+    return response;
+  }
+
+  // Session exists — verify it server-side before making auth decisions
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    if (isProtected) {
+      const loginUrl = new URL('/login', origin);
+      loginUrl.searchParams.set('redirect', pathname);
+      return redirectWithCookies(loginUrl, response);
+    }
+    return response;
   }
 
   // Authenticated user on a public route → redirect to their dashboard
-  if (isPublic && user) {
+  if (isPublic) {
     const { data: membership } = await supabase
       .from('organization_members')
       .select('role')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
     if (membership) {
       const url = ROLE_URL_MAP[membership.role];
