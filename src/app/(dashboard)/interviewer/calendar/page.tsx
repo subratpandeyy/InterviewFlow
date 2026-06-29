@@ -2,7 +2,7 @@ import { createServer } from '@/lib/supabase/server';
 import { createAdmin } from '@/lib/supabase/admin';
 import { CalendarPageClient } from '@/components/interviewer/calendar-page-client';
 import { getInterviewerTokens } from '@/lib/google/tokens';
-import { listUpcomingEvents, checkCalendarHealth, getFreeBusySlots, type CalendarEvent, type FreeBusySlot } from '@/lib/google/calendar';
+import { listUpcomingEvents, checkCalendarHealth, type CalendarEvent } from '@/lib/google/calendar';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,7 +52,6 @@ export default async function CalendarPage() {
   }
 
   let upcomingEvents: CalendarEvent[] = [];
-  let freeSlots: FreeBusySlot[] = [];
   let isHealthy = false;
   let healthMessage = 'Not connected';
 
@@ -60,21 +59,12 @@ export default async function CalendarPage() {
     const tokens = await getInterviewerTokens(profile.id);
     if (tokens) {
       try {
-        [upcomingEvents, freeSlots] = await Promise.all([
-          listUpcomingEvents(
-            tokens.accessToken,
-            tokens.refreshToken,
-            tokens.calendarEmail,
-            20,
-          ),
-          getFreeBusySlots(
-            tokens.accessToken,
-            tokens.refreshToken,
-            tokens.calendarEmail,
-            60,
-            30,
-          ),
-        ]);
+        upcomingEvents = await listUpcomingEvents(
+          tokens.accessToken,
+          tokens.refreshToken,
+          tokens.calendarEmail,
+          20,
+        );
 
         const health = await checkCalendarHealth(
           tokens.accessToken,
@@ -101,7 +91,6 @@ export default async function CalendarPage() {
       syncStatus={syncStatus}
       syncError={syncError}
       upcomingEvents={upcomingEvents}
-      freeSlots={freeSlots}
       isHealthy={isHealthy}
       healthMessage={healthMessage}
     />

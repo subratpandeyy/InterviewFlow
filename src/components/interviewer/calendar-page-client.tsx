@@ -27,12 +27,6 @@ interface CalendarEvent {
   end?: string;
 }
 
-interface FreeBusySlot {
-  date: string;
-  startTime: string;
-  endTime: string;
-}
-
 interface Props {
   isConnected: boolean;
   calendarEmail?: string;
@@ -40,7 +34,6 @@ interface Props {
   syncStatus?: string;
   syncError?: string;
   upcomingEvents: CalendarEvent[];
-  freeSlots: FreeBusySlot[];
   isHealthy: boolean;
   healthMessage: string;
 }
@@ -71,7 +64,6 @@ export function CalendarPageClient({
   syncStatus,
   syncError,
   upcomingEvents,
-  freeSlots,
   isHealthy,
   healthMessage,
 }: Props) {
@@ -107,12 +99,6 @@ export function CalendarPageClient({
 
   const todayEvents = upcomingEvents.filter((e) => isToday(e.start));
   const upcomingOnly = upcomingEvents.filter((e) => !isToday(e.start));
-
-  const slotsByDate = freeSlots.reduce<Record<string, FreeBusySlot[]>>((acc, slot) => {
-    (acc[slot.date] ??= []).push(slot);
-    return acc;
-  }, {});
-  const sortedDates = Object.keys(slotsByDate).sort();
 
   if (!isConnected) {
     return (
@@ -241,51 +227,6 @@ export function CalendarPageClient({
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CheckCircle2 className="size-5 text-emerald-400" />
-            Available Slots
-          </CardTitle>
-          <CardDescription>
-            Your free time slots for the next 30 days
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {sortedDates.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8">
-              <Calendar className="size-10 text-muted-foreground/40 mb-3" />
-              <p className="text-sm text-muted-foreground">No available slots found</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {sortedDates.map((date) => (
-                <div key={date} className="py-4 first:pt-0 last:pb-0">
-                  <p className="text-sm font-medium text-foreground mb-2">
-                    {new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {slotsByDate[date].map((slot) => (
-                      <div
-                        key={`${slot.date}-${slot.startTime}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-3 py-1.5 text-sm"
-                      >
-                        <Clock className="size-3.5 text-muted-foreground" />
-                        {slot.startTime} — {slot.endTime}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
