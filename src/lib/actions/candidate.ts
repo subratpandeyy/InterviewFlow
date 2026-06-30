@@ -495,3 +495,39 @@ export async function deletePortalDocument(formData: FormData) {
   if (error) return { error: error.message };
   return { success: true };
 }
+
+export async function uploadPortalResume(formData: FormData) {
+  const sessionToken = formData.get('session_token') as string;
+  const resolved = await resolveSession(sessionToken);
+  if ('error' in resolved) return { error: resolved.error };
+  const supabase = await createAdmin();
+  const file = formData.get('file') as File;
+  if (!file) return { error: 'No file provided' };
+  const ext = file.name.split('.').pop() || 'pdf';
+  const filePath = `${resolved.orgId}/${resolved.candidateId}/resume.${ext}`;
+  const { error: uploadError } = await supabase.storage.from('candidate-files').upload(filePath, file, { cacheControl: '3600', upsert: true });
+  if (uploadError) return { error: uploadError.message };
+  const { data: urlData } = supabase.storage.from('candidate-files').getPublicUrl(filePath);
+  const { error: dbError } = await supabase.from('resumes').insert({
+    candidate_id: resolved.candidateId,
+    organization_id: resolved.orgId,
+    file_url: urlData.publicUrl,
+    file_type: file.type,
+    parsing_status: 'pending',
+  });
+  if (dbError) return { error: dbError.message };
+  const { error: updateError } = await supabase.from('candidates').update({ resume_url: urlData.publicUrl }).eq('id', resolved.candidateId);
+  if (updateError) return { error: updateError.message };
+  return { success: true, file_url: urlData.publicUrl };
+}
+
+export async function deletePortalResume(formData: FormData) {
+  const sessionToken = formData.get('session_token') as string;
+  const id = formData.get('id') as string;
+  const resolved = await resolveSession(sessionToken);
+  if ('error' in resolved) return { error: resolved.error };
+  const supabase = await createAdmin();
+  const { error } = await supabase.from('resumes').delete().eq('id', id).eq('candidate_id', resolved.candidateId);
+  if (error) return { error: error.message };
+  return { success: true };
+}

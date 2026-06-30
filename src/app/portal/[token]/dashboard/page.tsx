@@ -11,7 +11,7 @@ import { PortalEducation } from '@/components/candidate/portal-education';
 import { PortalProjects } from '@/components/candidate/portal-projects';
 import { PortalCertifications } from '@/components/candidate/portal-certifications';
 import { PortalDocuments } from '@/components/candidate/portal-documents';
-import type { CandidateSkill, CandidateExperience, CandidateEducation, CandidateProject, CandidateCertification, CandidateDocument } from '@/types';
+import type { CandidateSkill, CandidateExperience, CandidateEducation, CandidateProject, CandidateCertification, CandidateDocument, Resume } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,7 +75,7 @@ export default async function DashboardPage({
   const candidate = session.candidate;
   const candidateId = candidate.id;
 
-  const [{ data: interviews }, skills, experience, education, projects, certifications, documents] = await Promise.all([
+  const [{ data: interviews }, skills, experience, education, projects, certifications, documents, resumes] = await Promise.all([
     admin
       .from('interviews')
       .select('*, position:positions(*), interviewer:profiles!interviewer_id(full_name, email)')
@@ -87,6 +87,7 @@ export default async function DashboardPage({
     safeQuery<CandidateProject>(admin.from('candidate_projects').select('*').eq('candidate_id', candidateId).order('created_at', { ascending: false })),
     safeQuery<CandidateCertification>(admin.from('candidate_certifications').select('*').eq('candidate_id', candidateId).order('issue_date', { ascending: false, nullsFirst: false })),
     safeQuery<CandidateDocument>(admin.from('candidate_documents').select('*').eq('candidate_id', candidateId).order('created_at', { ascending: false })),
+    safeQuery<Resume>(admin.from('resumes').select('*').eq('candidate_id', candidateId).order('created_at', { ascending: false })),
   ]);
 
   return (
@@ -228,18 +229,16 @@ export default async function DashboardPage({
       <Card>
         <CardHeader>
           <CardTitle>Resume</CardTitle>
-          <CardDescription>Upload or update your resume link</CardDescription>
+          <CardDescription>Upload your resume (PDF, DOC, or image)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {candidate.resume_url ? (
+          {candidate.resume_url && resumes.length === 0 && (
             <div className="flex items-center justify-between py-2 border-b">
               <span className="text-muted-foreground">Current Resume</span>
               <a href={candidate.resume_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm font-medium">View Resume</a>
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No resume uploaded yet.</p>
           )}
-          <ResumeForm sessionToken={sessionToken} />
+          <ResumeForm sessionToken={sessionToken} resumes={resumes} />
         </CardContent>
       </Card>
     </div>
