@@ -1,0 +1,16 @@
+Revised implementation order
+
+I would slightly reorder the roadmap:
+
+Phase 0 — Refactoring, security, pagination.
+Phase 1 — Database redesign.
+Phase 2 — Rich Candidate Profile.
+Phase 3 — Position Skill Matrix.
+Phase 4 — Resume parsing (local extraction first).
+Phase 5 — Interviewer Skills & Workload.
+Phase 6 — Intelligent interviewer recommendations.
+Phase 7 — Smart scheduling with Google Calendar.
+Phase 8 — Workflow automation (notifications, reminders, escalations).
+Phase 9 — Email template management.
+Phase 10 — Hiring analytics and insights.
+Phase 11 — AI enhancements (summaries, recommendations, fit scoring refinement).

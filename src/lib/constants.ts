@@ -77,6 +77,49 @@ export const AVAILABILITY_STATUSES = [
   { value: 'blocked', label: 'Blocked' },
 ] as const;
 
+export const SKILL_PROFICIENCY = [
+  { value: 'beginner', label: 'Beginner' },
+  { value: 'intermediate', label: 'Intermediate' },
+  { value: 'advanced', label: 'Advanced' },
+  { value: 'expert', label: 'Expert' },
+] as const;
+
+export const DOCUMENT_TYPES = [
+  { value: 'resume', label: 'Resume' },
+  { value: 'cover_letter', label: 'Cover Letter' },
+  { value: 'portfolio', label: 'Portfolio' },
+  { value: 'certificate', label: 'Certificate' },
+  { value: 'other', label: 'Other' },
+] as const;
+
+export const NOTE_TYPES = [
+  { value: 'general', label: 'General' },
+  { value: 'feedback', label: 'Feedback' },
+  { value: 'summary', label: 'Summary' },
+  { value: 'action_item', label: 'Action Item' },
+] as const;
+
+export const CANDIDATE_SOURCES = [
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'indeed', label: 'Indeed' },
+  { value: 'referral', label: 'Referral' },
+  { value: 'company_website', label: 'Company Website' },
+  { value: 'recruitment_agency', label: 'Recruitment Agency' },
+  { value: 'job_fair', label: 'Job Fair' },
+  { value: 'social_media', label: 'Social Media' },
+  { value: 'direct_application', label: 'Direct Application' },
+  { value: 'other', label: 'Other' },
+] as const;
+
+export const EMPLOYMENT_TYPES_EXPERIENCE = [
+  { value: 'full-time', label: 'Full Time' },
+  { value: 'part-time', label: 'Part Time' },
+  { value: 'contract', label: 'Contract' },
+  { value: 'internship', label: 'Internship' },
+  { value: 'freelance', label: 'Freelance' },
+  { value: 'self-employed', label: 'Self-Employed' },
+] as const;
+
 export const DAYS_OF_WEEK = [
   { value: 0, label: 'Sunday' },
   { value: 1, label: 'Monday' },

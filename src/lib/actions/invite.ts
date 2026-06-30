@@ -21,6 +21,9 @@ export async function inviteTeamMember(formData: FormData) {
   const email = formData.get('email') as string;
   const role = formData.get('role') as 'recruiter' | 'interviewer';
 
+  if (!email?.trim()) return { error: 'Email is required' };
+  if (!role) return { error: 'Role is required' };
+
   const admin = createAdmin();
 
   const { data: org } = await admin
@@ -65,7 +68,6 @@ export async function acceptInvitation(formData: FormData) {
 
   const admin = createAdmin();
 
-  // Verify invitation
   const { data: invitation, error: inviteError } = await admin
     .from('invitations')
     .select('*')
@@ -76,7 +78,6 @@ export async function acceptInvitation(formData: FormData) {
   if (invitation.accepted_at) return { error: 'Invitation already accepted' };
   if (new Date(invitation.expires_at) < new Date()) return { error: 'Invitation expired' };
 
-  // Create or locate the auth user
   const { data: authData, error: signUpError } = await admin.auth.admin.createUser({
     email,
     password,
@@ -96,14 +97,12 @@ export async function acceptInvitation(formData: FormData) {
       userId = existingUser.id;
       authUserCreated = false;
 
-      // Check if already fully registered
       const [profileRes, memberRes] = await Promise.all([
         admin.from('profiles').select('id').eq('user_id', userId).maybeSingle(),
         admin.from('organization_members').select('id').eq('user_id', userId).maybeSingle(),
       ]);
 
       if (profileRes.data && memberRes.data) {
-        // Already registered — just mark invitation as accepted
         await admin.from('invitations').update({ accepted_at: new Date().toISOString() }).eq('id', invitation.id);
         return { success: true };
       }
@@ -116,7 +115,6 @@ export async function acceptInvitation(formData: FormData) {
     userId = authData.user.id;
   }
 
-  // Idempotent: create profile if missing
   const { data: profile } = await admin
     .from('profiles')
     .select('id')
@@ -138,7 +136,6 @@ export async function acceptInvitation(formData: FormData) {
     }
   }
 
-  // Idempotent: create membership if missing
   const { data: existingMembership } = await admin
     .from('organization_members')
     .select('id')
@@ -161,8 +158,11 @@ export async function acceptInvitation(formData: FormData) {
     }
   }
 
-  // Mark invitation as accepted
   await admin.from('invitations').update({ accepted_at: new Date().toISOString() }).eq('id', invitation.id);
 
   return { success: true };
+}
+
+export async function inviteMember(formData: FormData) {
+  return inviteTeamMember(formData);
 }

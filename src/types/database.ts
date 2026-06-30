@@ -74,6 +74,15 @@ export interface DbCandidate {
   access_token: string | null;
   access_token_expires_at: string | null;
   email_verified_at: string | null;
+  current_company: string | null;
+  current_title: string | null;
+  source: string | null;
+  source_detail: string | null;
+  salary_expectation: number | null;
+  availability_date: string | null;
+  referred_by: string | null;
+  preferred_timezone: string | null;
+  tags: Json;
   created_at: string;
   updated_at: string;
 }
@@ -229,6 +238,134 @@ export interface DbCandidateSession {
   created_at: string;
 }
 
+export interface DbResume {
+  id: string;
+  candidate_id: string;
+  organization_id: string;
+  file_url: string | null;
+  file_type: string | null;
+  parsed_text: string | null;
+  parsed_data: Json;
+  parsing_status: 'pending' | 'processing' | 'completed' | 'failed';
+  parsing_error: string | null;
+  parsed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbCandidateSkill {
+  id: string;
+  candidate_id: string;
+  organization_id: string;
+  skill_name: string;
+  category: string | null;
+  proficiency: 'beginner' | 'intermediate' | 'advanced' | 'expert' | null;
+  years_experience: number | null;
+  is_verified: boolean;
+  source: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbCandidateExperience {
+  id: string;
+  candidate_id: string;
+  organization_id: string;
+  company: string;
+  title: string;
+  location: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  is_current: boolean;
+  description: string | null;
+  achievements: Json;
+  skills_used: string[] | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbCandidateEducation {
+  id: string;
+  candidate_id: string;
+  organization_id: string;
+  institution: string;
+  degree: string | null;
+  field_of_study: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  is_current: boolean;
+  grade: string | null;
+  activities: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbCandidateProject {
+  id: string;
+  candidate_id: string;
+  organization_id: string;
+  name: string;
+  description: string | null;
+  url: string | null;
+  technologies: string[] | null;
+  start_date: string | null;
+  end_date: string | null;
+  is_current: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbCandidateCertification {
+  id: string;
+  candidate_id: string;
+  organization_id: string;
+  name: string;
+  issuer: string | null;
+  issue_date: string | null;
+  expiry_date: string | null;
+  credential_id: string | null;
+  credential_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbCandidateDocument {
+  id: string;
+  candidate_id: string;
+  organization_id: string;
+  document_type: string;
+  file_url: string;
+  file_name: string | null;
+  file_size: number | null;
+  mime_type: string | null;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
+export interface DbCandidateNote {
+  id: string;
+  candidate_id: string;
+  organization_id: string;
+  author_id: string | null;
+  content: string;
+  note_type: 'general' | 'feedback' | 'summary' | 'action_item';
+  is_pinned: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbCandidateStatusHistory {
+  id: string;
+  candidate_id: string;
+  organization_id: string;
+  previous_status: string | null;
+  new_status: string;
+  changed_by: string | null;
+  change_reason: string | null;
+  metadata: Json;
+  created_at: string;
+}
+
 // ----- DATABASE (for supabase-js type inference) -----
 export interface Database {
   public: {
@@ -250,6 +387,15 @@ export interface Database {
       notifications: { Row: DbNotification; Insert: Omit<DbNotification, 'id' | 'created_at'>; Update: Partial<Omit<DbNotification, 'id'>> };
       audit_logs: { Row: DbAuditLog; Insert: Omit<DbAuditLog, 'id' | 'created_at'>; Update: Partial<Omit<DbAuditLog, 'id'>> };
       candidate_sessions: { Row: DbCandidateSession; Insert: Omit<DbCandidateSession, 'id' | 'created_at'>; Update: Partial<Omit<DbCandidateSession, 'id'>> };
+      resumes: { Row: DbResume; Insert: Omit<DbResume, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbResume, 'id'>> };
+      candidate_skills: { Row: DbCandidateSkill; Insert: Omit<DbCandidateSkill, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbCandidateSkill, 'id'>> };
+      candidate_experience: { Row: DbCandidateExperience; Insert: Omit<DbCandidateExperience, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbCandidateExperience, 'id'>> };
+      candidate_education: { Row: DbCandidateEducation; Insert: Omit<DbCandidateEducation, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbCandidateEducation, 'id'>> };
+      candidate_projects: { Row: DbCandidateProject; Insert: Omit<DbCandidateProject, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbCandidateProject, 'id'>> };
+      candidate_certifications: { Row: DbCandidateCertification; Insert: Omit<DbCandidateCertification, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbCandidateCertification, 'id'>> };
+      candidate_documents: { Row: DbCandidateDocument; Insert: Omit<DbCandidateDocument, 'id' | 'created_at'>; Update: Partial<Omit<DbCandidateDocument, 'id'>> };
+      candidate_notes: { Row: DbCandidateNote; Insert: Omit<DbCandidateNote, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbCandidateNote, 'id'>> };
+      candidate_status_history: { Row: DbCandidateStatusHistory; Insert: Omit<DbCandidateStatusHistory, 'id' | 'created_at'>; Update: Partial<Omit<DbCandidateStatusHistory, 'id'>> };
     };
     Functions: {
       get_user_organization_ids: { Args: Record<string, never>; Returns: string[] };

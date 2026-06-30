@@ -16,8 +16,7 @@ import Link from 'next/link';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { CalendarConnections } from '@/components/admin/calendar-connections';
-import { getInterviewerTokens } from '@/lib/google/tokens';
-import { listUpcomingEvents, getFreeBusySlots } from '@/lib/google/calendar';
+import { getInterviewerTokens, listUpcomingEvents, getFreeBusySlots } from '@/lib/services/calendar.service';
 
 export const dynamic = 'force-dynamic';
 

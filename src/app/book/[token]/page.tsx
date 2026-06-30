@@ -1,8 +1,7 @@
 import { notFound } from 'next/navigation';
 import { createAdmin } from '@/lib/supabase/admin';
 import { BookingClient } from '@/components/booking/booking-client';
-import { getInterviewerTokens } from '@/lib/google/tokens';
-import { getFreeBusySlots } from '@/lib/google/calendar';
+import { getInterviewerTokens, getFreeBusySlots } from '@/lib/services/calendar.service';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 export const dynamic = 'force-dynamic';

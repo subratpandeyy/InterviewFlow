@@ -3,9 +3,15 @@ import { createAdmin } from '@/lib/supabase/admin';
 import { CANDIDATE_STATUSES, INTERVIEW_TYPES, INTERVIEW_STATUSES } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { ResumeForm } from '@/components/candidate/resume-form';
+import { PortalSkills } from '@/components/candidate/portal-skills';
+import { PortalExperience } from '@/components/candidate/portal-experience';
+import { PortalEducation } from '@/components/candidate/portal-education';
+import { PortalProjects } from '@/components/candidate/portal-projects';
+import { PortalCertifications } from '@/components/candidate/portal-certifications';
+import { PortalDocuments } from '@/components/candidate/portal-documents';
+import type { CandidateSkill, CandidateExperience, CandidateEducation, CandidateProject, CandidateCertification, CandidateDocument } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,14 +24,6 @@ const statusColorMap: Record<string, 'default' | 'secondary' | 'destructive' | '
   rejected: 'destructive',
 };
 
-const interviewStatusColorMap: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  pending: 'outline',
-  scheduled: 'default',
-  completed: 'secondary',
-  cancelled: 'destructive',
-  no_show: 'destructive',
-};
-
 function formatDate(dateStr: string | null | undefined) {
   if (!dateStr) return '—';
   return new Date(dateStr).toLocaleDateString('en-US', {
@@ -35,6 +33,15 @@ function formatDate(dateStr: string | null | undefined) {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+async function safeQuery<T>(query: any): Promise<T[]> {
+  try {
+    const res = await query;
+    return (res.data ?? []) as T[];
+  } catch {
+    return [];
+  }
 }
 
 export default async function DashboardPage({
@@ -66,12 +73,21 @@ export default async function DashboardPage({
   }
 
   const candidate = session.candidate;
+  const candidateId = candidate.id;
 
-  const { data: interviews } = await admin
-    .from('interviews')
-    .select('*, position:positions(*), interviewer:profiles!interviewer_id(full_name, email)')
-    .eq('candidate_id', candidate.id)
-    .order('created_at', { ascending: false });
+  const [{ data: interviews }, skills, experience, education, projects, certifications, documents] = await Promise.all([
+    admin
+      .from('interviews')
+      .select('*, position:positions(*), interviewer:profiles!interviewer_id(full_name, email)')
+      .eq('candidate_id', candidateId)
+      .order('created_at', { ascending: false }),
+    safeQuery<CandidateSkill>(admin.from('candidate_skills').select('*').eq('candidate_id', candidateId).order('skill_name')),
+    safeQuery<CandidateExperience>(admin.from('candidate_experience').select('*').eq('candidate_id', candidateId).order('start_date', { ascending: false, nullsFirst: false })),
+    safeQuery<CandidateEducation>(admin.from('candidate_education').select('*').eq('candidate_id', candidateId).order('start_date', { ascending: false, nullsFirst: false })),
+    safeQuery<CandidateProject>(admin.from('candidate_projects').select('*').eq('candidate_id', candidateId).order('created_at', { ascending: false })),
+    safeQuery<CandidateCertification>(admin.from('candidate_certifications').select('*').eq('candidate_id', candidateId).order('issue_date', { ascending: false, nullsFirst: false })),
+    safeQuery<CandidateDocument>(admin.from('candidate_documents').select('*').eq('candidate_id', candidateId).order('created_at', { ascending: false })),
+  ]);
 
   return (
     <div className="mx-auto w-full max-w-[1200px] space-y-8 px-4 py-8 sm:px-6 lg:px-8">
@@ -149,6 +165,13 @@ export default async function DashboardPage({
         </CardContent>
       </Card>
 
+      <PortalSkills skills={skills} sessionToken={sessionToken} />
+      <PortalExperience experience={experience} sessionToken={sessionToken} />
+      <PortalEducation education={education} sessionToken={sessionToken} />
+      <PortalProjects projects={projects} sessionToken={sessionToken} />
+      <PortalCertifications certifications={certifications} sessionToken={sessionToken} />
+      <PortalDocuments documents={documents} sessionToken={sessionToken} />
+
       {interviews && interviews.length > 0 && (
         <Card>
           <CardHeader>
@@ -156,53 +179,46 @@ export default async function DashboardPage({
             <CardDescription>Your interview history</CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Position</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Scheduled</TableHead>
-                  <TableHead>Interviewer</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Meeting</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {interviews.map((interview) => (
-                  <TableRow key={interview.id}>
-                    <TableCell className="font-medium">
-                      {interview.position?.title || '—'}
-                    </TableCell>
-                    <TableCell>
-                      {INTERVIEW_TYPES.find(t => t.value === interview.interview_type)?.label || interview.interview_type}
-                    </TableCell>
-                    <TableCell>{formatDate(interview.scheduled_at)}</TableCell>
-                    <TableCell>{interview.interviewer?.full_name || '—'}</TableCell>
-                    <TableCell>{interview.duration_minutes}m</TableCell>
-                    <TableCell>
-                      <Badge variant={interviewStatusColorMap[interview.status] || 'outline'}>
-                        {INTERVIEW_STATUSES.find(s => s.value === interview.status)?.label || interview.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {interview.meeting_link ? (
-                        <a
-                          href={interview.meeting_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline text-sm"
-                        >
-                          Join
-                        </a>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">—</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Position</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Type</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Scheduled</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Interviewer</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Duration</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Status</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Meeting</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {interviews.map((interview) => (
+                    <tr key={interview.id} className="border-b border-border/50 last:border-0">
+                      <td className="py-2.5 px-3 font-medium">{interview.position?.title || '—'}</td>
+                      <td className="py-2.5 px-3">{INTERVIEW_TYPES.find(t => t.value === interview.interview_type)?.label || interview.interview_type}</td>
+                      <td className="py-2.5 px-3">{formatDate(interview.scheduled_at)}</td>
+                      <td className="py-2.5 px-3">{interview.interviewer?.full_name || '—'}</td>
+                      <td className="py-2.5 px-3">{interview.duration_minutes}m</td>
+                      <td className="py-2.5 px-3">
+                        <Badge variant={
+                          interview.status === 'scheduled' ? 'default' :
+                          interview.status === 'completed' ? 'secondary' :
+                          interview.status === 'cancelled' || interview.status === 'no_show' ? 'destructive' : 'outline'
+                        }>
+                          {INTERVIEW_STATUSES.find(s => s.value === interview.status)?.label || interview.status}
+                        </Badge>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        {interview.meeting_link ? (
+                          <a href={interview.meeting_link} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm">Join</a>
+                        ) : <span className="text-muted-foreground text-sm">—</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -218,14 +234,7 @@ export default async function DashboardPage({
           {candidate.resume_url ? (
             <div className="flex items-center justify-between py-2 border-b">
               <span className="text-muted-foreground">Current Resume</span>
-              <a
-                href={candidate.resume_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline text-sm font-medium"
-              >
-                View Resume
-              </a>
+              <a href={candidate.resume_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm font-medium">View Resume</a>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">No resume uploaded yet.</p>

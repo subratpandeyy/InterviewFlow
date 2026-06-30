@@ -1,8 +1,7 @@
 import { createServer } from '@/lib/supabase/server';
 import { createAdmin } from '@/lib/supabase/admin';
 import { CalendarPageClient } from '@/components/interviewer/calendar-page-client';
-import { getInterviewerTokens } from '@/lib/google/tokens';
-import { listUpcomingEvents, checkCalendarHealth, type CalendarEvent } from '@/lib/google/calendar';
+import { getInterviewerTokens, listUpcomingEvents, checkCalendarHealth, type CalendarEventData } from '@/lib/services/calendar.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,7 +50,7 @@ export default async function CalendarPage() {
     }
   }
 
-  let upcomingEvents: CalendarEvent[] = [];
+  let upcomingEvents: CalendarEventData[] = [];
   let isHealthy = false;
   let healthMessage = 'Not connected';
 

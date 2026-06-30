@@ -10,9 +10,6 @@ export async function signup(formData: FormData) {
 
   const admin = createAdmin();
 
-  // ------------------------------------------------------------------
-  // Step 1 – Create or locate the auth user
-  // ------------------------------------------------------------------
   const { data: authData, error: signUpError } = await admin.auth.admin.createUser({
     email,
     password,
@@ -21,12 +18,10 @@ export async function signup(formData: FormData) {
   });
 
   let userId: string;
-  let authUserCreated = true; // tracks whether *we* created the auth user (for cleanup)
+  let authUserCreated = true;
 
   if (signUpError) {
     if (signUpError.message.includes('already been registered')) {
-      // ---- Recovery path: auth user exists but may be orphaned ----
-      // Look up the existing auth user by email.
       const { data: users } = await admin.auth.admin.listUsers();
       const existingUser = users?.users?.find((u) => u.email === email);
 
@@ -37,7 +32,6 @@ export async function signup(formData: FormData) {
       userId = existingUser.id;
       authUserCreated = false;
 
-      // Does this user already have a complete registration?
       const [profileRes, memberRes] = await Promise.all([
         admin.from('profiles').select('id').eq('user_id', userId).maybeSingle(),
         admin.from('organization_members').select('id').eq('user_id', userId).maybeSingle(),
@@ -46,8 +40,6 @@ export async function signup(formData: FormData) {
       if (profileRes.data && memberRes.data) {
         return { error: 'An account with this email already exists.' };
       }
-
-      // Incomplete / orphaned — fall through to create missing records
     } else {
       return { error: signUpError.message };
     }
@@ -57,9 +49,6 @@ export async function signup(formData: FormData) {
     userId = authData.user.id;
   }
 
-  // ------------------------------------------------------------------
-  // Step 2 – Create organization
-  // ------------------------------------------------------------------
   const slug = orgName
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
@@ -81,9 +70,6 @@ export async function signup(formData: FormData) {
     return { error: 'Failed to create organization' };
   }
 
-  // ------------------------------------------------------------------
-  // Step 3 – Create profile (only if the trigger hasn't already done it)
-  // ------------------------------------------------------------------
   const { data: profile } = await admin
     .from('profiles')
     .select('id')
@@ -108,9 +94,6 @@ export async function signup(formData: FormData) {
     }
   }
 
-  // ------------------------------------------------------------------
-  // Step 4 – Create organization membership
-  // ------------------------------------------------------------------
   const { data: existingMembership } = await admin
     .from('organization_members')
     .select('id')

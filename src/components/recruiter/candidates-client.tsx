@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { Pencil, Trash2, Search, Users } from 'lucide-react';
 import { updateCandidate, deleteCandidate, updateCandidateStatus } from '@/lib/actions/recruiter';
@@ -152,7 +153,11 @@ export function CandidatesClient({ candidates }: CandidatesClientProps) {
           )}
           {filtered.map((candidate) => (
             <TableRow key={candidate.id}>
-              <TableCell className="font-medium">{candidate.full_name}</TableCell>
+              <TableCell className="font-medium">
+                <Link href={`/recruiter/candidates/${candidate.id}`} className="hover:text-accent transition-colors">
+                  {candidate.full_name}
+                </Link>
+              </TableCell>
               <TableCell>{candidate.email}</TableCell>
               <TableCell>{candidate.position_applied || '-'}</TableCell>
               <TableCell>

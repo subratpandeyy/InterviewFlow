@@ -4,11 +4,14 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createAdmin } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
-import { getInterviewerTokens } from '@/lib/google/tokens';
-import { createCalendarEvent } from '@/lib/google/calendar';
+import { getInterviewerTokens, createCalendarEvent } from '@/lib/services/calendar.service';
 import { notifyInterviewScheduled } from '@/lib/notifications';
+import * as rateLimiter from '@/lib/services/rate-limiter';
 
 export async function bookInterviewSlot(interviewId: string, date: string, startTime: string, token: string) {
+  const rateResult = rateLimiter.check(`booking:${token}`, 5, 60);
+  if (!rateResult.allowed) throw new Error('Too many attempts. Please try again later.');
+
   const admin = createAdmin();
 
   const { data: interview } = await admin
@@ -160,4 +163,22 @@ export async function bookInterviewSlot(interviewId: string, date: string, start
     revalidatePath(`/book/${token}`);
     redirect(`/book/${token}?confirmed=true`);
   }
+}
+
+export async function cancelBooking(formData: FormData) {
+  const token = formData.get('token') as string;
+
+  if (!token) throw new Error('Missing booking token');
+
+  const admin = createAdmin();
+
+  const { error } = await admin
+    .from('bookings')
+    .update({ status: 'cancelled' })
+    .eq('token', token);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/book/${token}`);
+  return { success: true };
 }

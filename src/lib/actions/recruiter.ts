@@ -2,582 +2,228 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { createServer } from '@/lib/supabase/server';
-import { createAdmin } from '@/lib/supabase/admin';
-import { sendEmail } from '@/lib/email';
-import { getInterviewerTokens } from '@/lib/google/tokens';
-import { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from '@/lib/google/calendar';
-import { notifyInterviewScheduled, notifyInterviewRescheduled, notifyInterviewCancelled } from '@/lib/notifications';
-import type { CandidateStatus, PositionStatus } from '@/types';
+import { requireRole } from '@/lib/services/auth.service';
+import { candidateStatusSchema, positionStatusSchema, interviewStatusSchema } from '@/lib/validators/common';
+import * as candidateService from '@/lib/services/candidate.service';
+import * as positionService from '@/lib/services/position.service';
+import * as interviewService from '@/lib/services/interview.service';
+import { failure } from '@/lib/services/response';
+import type { ActionResult } from '@/lib/services/response';
 
 export async function createCandidate(formData: FormData) {
-  const supabase = await createServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Unauthorized');
+  const ctx = await requireRole('recruiter');
 
-  const { data: membership } = await supabase
-    .from('organization_members')
-    .select('organization_id, role')
-    .eq('user_id', user.id)
-    .single();
-
-  if (!membership || membership.role !== 'recruiter') throw new Error('Unauthorized');
-
-  const token = crypto.randomUUID();
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 30);
-
-  const { error } = await supabase.from('candidates').insert({
-    organization_id: membership.organization_id,
-    full_name: formData.get('full_name') as string,
+  const result = await candidateService.createCandidate({
+    organizationId: ctx.user.organizationId,
+    fullName: formData.get('full_name') as string,
     email: formData.get('email') as string,
-    phone: formData.get('phone') as string || null,
-    position_applied: formData.get('position_applied') as string || null,
-    resume_url: formData.get('resume_url') as string || null,
-    notes: formData.get('notes') as string || null,
-    status: 'applied',
-    access_token: token,
-    access_token_expires_at: expiresAt.toISOString(),
+    phone: formData.get('phone') as string || undefined,
+    positionApplied: formData.get('position_applied') as string || undefined,
+    resumeUrl: formData.get('resume_url') as string || undefined,
+    notes: formData.get('notes') as string || undefined,
   });
 
-  if (error) throw new Error(error.message);
-
-  const name = formData.get('full_name') as string;
-  const email = formData.get('email') as string;
-  const link = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/portal/${token}`;
-
-  await sendEmail({
-    to: email,
-    subject: 'Your Interview Portal Access',
-    html: `<h1>Hello ${name},</h1><p>Welcome to InterviewFlow. Click the link below to access your portal:</p><p><a href="${link}">${link}</a></p>`,
-  });
+  if (!result.success) throw new Error(result.error.message);
 
   revalidatePath('/recruiter/candidates');
   redirect('/recruiter/candidates');
 }
 
 export async function updateCandidateStatus(id: string, status: string) {
-  const supabase = await createServer();
-  const { error } = await supabase
-    .from('candidates')
-    .update({ status })
-    .eq('id', id);
+  await requireRole('recruiter');
 
-  if (error) throw new Error(error.message);
-  revalidatePath('/recruiter/candidates');
-}
-
-function generateToken(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let token = '';
-  for (let i = 0; i < 8; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
+  const parsed = candidateStatusSchema.safeParse(status);
+  if (!parsed.success) {
+    return failure('VALIDATION_ERROR', 'Invalid status');
   }
-  return token;
+
+  const result = await candidateService.updateCandidateStatus(id, status);
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath('/recruiter/candidates');
+  return { success: true };
 }
 
 export async function createInterview(formData: FormData) {
-  const supabase = await createServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Unauthorized');
+  const ctx = await requireRole('recruiter');
 
-  const { data: membership } = await supabase
-    .from('organization_members')
-    .select('organization_id, role')
-    .eq('user_id', user.id)
-    .single();
+  const result = await interviewService.createInterview({
+    organizationId: ctx.user.organizationId,
+    candidateId: formData.get('candidate_id') as string,
+    positionId: formData.get('position_id') as string,
+    interviewerId: formData.get('interviewer_id') as string,
+    recruiterId: ctx.user.profileId,
+    interviewType: formData.get('interview_type') as string,
+    durationMinutes: parseInt(formData.get('duration') as string) || 60,
+    notes: formData.get('notes') as string || undefined,
+  });
 
-  if (!membership || membership.role !== 'recruiter') throw new Error('Unauthorized');
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('user_id', user.id)
-    .single();
-
-  if (!profile) throw new Error('Profile not found');
-
-  const candidateId = formData.get('candidate_id') as string;
-  const positionId = formData.get('position_id') as string;
-  const interviewerId = formData.get('interviewer_id') as string;
-  const interviewType = formData.get('interview_type') as string;
-  const duration = parseInt(formData.get('duration') as string) || 60;
-  const notes = formData.get('notes') as string || null;
-
-  const token = generateToken();
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7);
-
-  const { data: interview, error: interviewError } = await supabase
-    .from('interviews')
-    .insert({
-      organization_id: membership.organization_id,
-      candidate_id: candidateId,
-      position_id: positionId,
-      interviewer_id: interviewerId,
-      recruiter_id: profile.id,
-      interview_type: interviewType,
-      duration_minutes: duration,
-      status: 'pending',
-      notes,
-      booking_token: token,
-      booking_expires_at: expiresAt.toISOString(),
-    })
-    .select()
-    .single();
-
-  if (interviewError) throw new Error(interviewError.message);
-
-  const { error: bookingError } = await supabase
-    .from('bookings')
-    .insert({
-      interview_id: interview.id,
-      token,
-      status: 'pending',
-      expires_at: expiresAt.toISOString(),
-    });
-
-  if (bookingError) throw new Error(bookingError.message);
+  if (!result.success) throw new Error(result.error.message);
 
   revalidatePath('/recruiter/interviews');
   revalidatePath('/recruiter/scheduling');
 
-  redirect(`/recruiter/interviews?token=${token}`);
+  redirect(`/recruiter/interviews?token=${result.data.booking_token}`);
 }
 
 export async function updateInterview(formData: FormData) {
-  const supabase = await createServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'Unauthorized' };
-
-  const { data: membership } = await supabase
-    .from('organization_members')
-    .select('role')
-    .eq('user_id', user.id)
-    .single();
-
-  if (!membership || (membership.role !== 'recruiter' && membership.role !== 'organization_admin'))
-    return { error: 'Unauthorized' };
+  const ctx = await requireRole(['recruiter', 'organization_admin']);
 
   const id = formData.get('id') as string;
   if (!id) return { error: 'Interview ID is required' };
 
   const newStatus = formData.get('status') as string || null;
-  const newScheduledAt = formData.get('scheduled_at') as string || null;
-
-  const admin = createAdmin();
-  const { data: interview } = await admin
-    .from('interviews')
-    .select('*, candidate:candidates(*), interviewer:profiles!interviewer_id(*)')
-    .eq('id', id)
-    .single();
-
-  if (!interview) return { error: 'Interview not found' };
-
-  const oldScheduledAt = interview.scheduled_at;
-  const isStatusChangeToCancelled = newStatus === 'cancelled' && interview.status !== 'cancelled';
-  const isTimeChange = newScheduledAt && oldScheduledAt && newScheduledAt !== oldScheduledAt;
-
-  const { error } = await supabase
-    .from('interviews')
-    .update({
-      scheduled_at: newScheduledAt,
-      status: newStatus,
-      notes: formData.get('notes') as string || null,
-      meeting_link: formData.get('meeting_link') as string || null,
-      meeting_provider: formData.get('meeting_provider') as string || null,
-    })
-    .eq('id', id);
-
-  if (error) return { error: error.message };
-
-  const googleTokens = await getInterviewerTokens(interview.interviewer_id);
-
-  if (googleTokens) {
-    try {
-      if (isStatusChangeToCancelled && interview.calendar_event_id) {
-        await deleteCalendarEvent(
-          googleTokens.accessToken,
-          googleTokens.refreshToken,
-          googleTokens.calendarEmail,
-          interview.calendar_event_id,
-        );
-
-        await admin.from('interviews').update({
-          calendar_event_id: null,
-          calendar_id: null,
-        }).eq('id', id);
-
-        const candidateName = interview.candidate?.full_name || 'Candidate';
-        await notifyInterviewCancelled({
-          organizationId: interview.organization_id,
-          candidateEmail: interview.candidate?.email || '',
-          candidateName,
-          interviewerId: interview.interviewer_id,
-          interviewerEmail: interview.interviewer?.email || '',
-        });
-      } else if (isTimeChange && interview.calendar_event_id) {
-        const startDateTime = new Date(newScheduledAt!);
-        const endDateTime = new Date(startDateTime.getTime() + (interview.duration_minutes || 60) * 60 * 1000);
-
-        await updateCalendarEvent(
-          googleTokens.accessToken,
-          googleTokens.refreshToken,
-          googleTokens.calendarEmail,
-          interview.calendar_event_id,
-          {
-            startTime: startDateTime,
-            endTime: endDateTime,
-          },
-        );
-
-        const formattedOld = new Date(oldScheduledAt!).toLocaleString();
-        const formattedNew = new Date(newScheduledAt!).toLocaleString();
-        const meetingLink = interview.meeting_link || '';
-
-        await notifyInterviewRescheduled({
-          organizationId: interview.organization_id,
-          candidateEmail: interview.candidate?.email || '',
-          candidateName: interview.candidate?.full_name || 'Candidate',
-          interviewerId: interview.interviewer_id,
-          interviewerEmail: interview.interviewer?.email || '',
-          oldDate: formattedOld,
-          newDate: formattedNew,
-          meetingLink,
-        });
-      } else if (newStatus === 'scheduled' && newScheduledAt && !interview.calendar_event_id) {
-        const startDateTime = new Date(newScheduledAt);
-        const endDateTime = new Date(startDateTime.getTime() + (interview.duration_minutes || 60) * 60 * 1000);
-
-        const event = await createCalendarEvent(
-          googleTokens.accessToken,
-          googleTokens.refreshToken,
-          googleTokens.calendarEmail,
-          {
-            summary: `Interview: ${interview.candidate?.full_name || 'Candidate'}`,
-            description: `Interview with ${interview.candidate?.full_name || 'Candidate'} (${interview.candidate?.email || ''})\nPosition: ${interview.notes || ''}`,
-            startTime: startDateTime,
-            endTime: endDateTime,
-            attendeeEmails: [interview.candidate?.email].filter(Boolean) as string[],
-          },
-        );
-
-        const meetingLink = event.hangoutLink || interview.meeting_link || '';
-
-        await admin.from('interviews').update({
-          calendar_event_id: event.id || null,
-          calendar_id: googleTokens.calendarEmail,
-          meeting_link: meetingLink,
-          meeting_provider: 'google_meet',
-        }).eq('id', id);
-
-        if (meetingLink) {
-          await admin.from('interview_meetings').insert({
-            interview_id: id,
-            provider: 'google_meet',
-            meeting_url: meetingLink,
-          });
-        }
-
-        const formattedDate = startDateTime.toLocaleString();
-        await notifyInterviewScheduled({
-          organizationId: interview.organization_id,
-          candidateEmail: interview.candidate?.email || '',
-          candidateName: interview.candidate?.full_name || 'Candidate',
-          interviewerId: interview.interviewer_id,
-          interviewerEmail: interview.interviewer?.email || '',
-          interviewDate: formattedDate,
-          meetingLink,
-        });
-      }
-    } catch (err) {
-      console.error('[recruiter] Calendar sync failed:', err);
-    }
-  } else if (isStatusChangeToCancelled) {
-    const candidateName = interview.candidate?.full_name || 'Candidate';
-    await notifyInterviewCancelled({
-      organizationId: interview.organization_id,
-      candidateEmail: interview.candidate?.email || '',
-      candidateName,
-      interviewerId: interview.interviewer_id,
-      interviewerEmail: interview.interviewer?.email || '',
-    });
+  if (newStatus) {
+    const parsed = interviewStatusSchema.safeParse(newStatus);
+    if (!parsed.success) return { error: 'Invalid status' };
   }
+
+  const result = await interviewService.updateInterview(id, {
+    scheduledAt: formData.get('scheduled_at') as string || undefined,
+    status: newStatus || undefined,
+    notes: formData.get('notes') as string || undefined,
+    meetingLink: formData.get('meeting_link') as string || undefined,
+    meetingProvider: formData.get('meeting_provider') as string || undefined,
+  });
+
+  if (!result.success) return { error: result.error.message };
 
   revalidatePath('/recruiter/interviews');
   return { success: true };
 }
 
 export async function deleteInterview(formData: FormData) {
-  const supabase = await createServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'Unauthorized' };
-
-  const { data: membership } = await supabase
-    .from('organization_members')
-    .select('role')
-    .eq('user_id', user.id)
-    .single();
-
-  if (!membership || (membership.role !== 'recruiter' && membership.role !== 'organization_admin'))
-    return { error: 'Unauthorized' };
+  await requireRole(['recruiter', 'organization_admin']);
 
   const id = formData.get('id') as string;
   if (!id) return { error: 'Interview ID is required' };
 
-  const admin = createAdmin();
-  const { data: interview } = await admin
-    .from('interviews')
-    .select('*, candidate:candidates(*), interviewer:profiles!interviewer_id(*)')
-    .eq('id', id)
-    .single();
-
-  if (interview?.calendar_event_id) {
-    const googleTokens = await getInterviewerTokens(interview.interviewer_id);
-    if (googleTokens) {
-      try {
-        await deleteCalendarEvent(
-          googleTokens.accessToken,
-          googleTokens.refreshToken,
-          googleTokens.calendarEmail,
-          interview.calendar_event_id,
-        );
-      } catch (err) {
-        console.error('[recruiter] Failed to delete calendar event:', err);
-      }
-    }
-  }
-
-  const { error } = await supabase
-    .from('interviews')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', id);
-
-  if (error) return { error: error.message };
-
-  if (interview) {
-    await notifyInterviewCancelled({
-      organizationId: interview.organization_id,
-      candidateEmail: interview.candidate?.email || '',
-      candidateName: interview.candidate?.full_name || 'Candidate',
-      interviewerId: interview.interviewer_id,
-      interviewerEmail: interview.interviewer?.email || '',
-    });
-  }
+  const result = await interviewService.deleteInterview(id);
+  if (!result.success) return { error: result.error.message };
 
   revalidatePath('/recruiter/interviews');
   return { success: true };
 }
 
 export async function createPosition(formData: FormData) {
-  const supabase = await createServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Unauthorized');
-
-  const { data: membership } = await supabase
-    .from('organization_members')
-    .select('organization_id')
-    .eq('user_id', user.id)
-    .single();
-
-  if (!membership) throw new Error('Unauthorized');
+  const ctx = await requireRole(['recruiter', 'organization_admin']);
 
   const skillsRaw = formData.get('skills') as string || null;
-  const skills = skillsRaw ? skillsRaw.split(',').map(s => s.trim()).filter(Boolean) : null;
+  const skills = skillsRaw ? skillsRaw.split(',').map(s => s.trim()).filter(Boolean) : undefined;
 
-  const { error } = await supabase.from('positions').insert({
-    organization_id: membership.organization_id,
+  const result = await positionService.createPosition({
+    organizationId: ctx.user.organizationId,
     title: formData.get('title') as string,
     department: formData.get('department') as string,
-    experience_required: formData.get('experience_required') as string || null,
-    description: formData.get('description') as string || null,
-    employment_type: formData.get('employment_type') as string || null,
-    location: formData.get('location') as string || null,
+    experienceRequired: formData.get('experience_required') as string || undefined,
+    description: formData.get('description') as string || undefined,
+    employmentType: formData.get('employment_type') as string || undefined,
+    location: formData.get('location') as string || undefined,
     skills,
-    status: 'open',
   });
 
-  if (error) throw new Error(error.message);
+  if (!result.success) throw new Error(result.error.message);
   revalidatePath('/recruiter/scheduling');
 }
 
 export async function updateCandidate(formData: FormData) {
-  const supabase = await createServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'Unauthorized' };
-
-  const { data: membership } = await supabase
-    .from('organization_members')
-    .select('organization_id, role')
-    .eq('user_id', user.id)
-    .single();
-
-  if (!membership || membership.role !== 'recruiter') return { error: 'Unauthorized' };
+  await requireRole('recruiter');
 
   const id = formData.get('id') as string;
   if (!id) return { error: 'Candidate ID is required' };
 
-  const status = formData.get('status') as CandidateStatus | null;
-  if (status && !['applied', 'screening', 'scheduled', 'interviewed', 'selected', 'rejected'].includes(status)) {
-    return { error: 'Invalid status' };
+  const status = formData.get('status') as string | null;
+  if (status) {
+    const parsed = candidateStatusSchema.safeParse(status);
+    if (!parsed.success) return { error: 'Invalid status' };
   }
 
-  const { error } = await supabase
-    .from('candidates')
-    .update({
-      full_name: formData.get('full_name') as string,
-      email: formData.get('email') as string,
-      phone: formData.get('phone') as string || null,
-      position_applied: formData.get('position_applied') as string || null,
-      resume_url: formData.get('resume_url') as string || null,
-      notes: formData.get('notes') as string || null,
-      ...(status ? { status } : {}),
-    })
-    .eq('id', id);
+  const result = await candidateService.updateCandidate(id, {
+    fullName: formData.get('full_name') as string,
+    email: formData.get('email') as string,
+    phone: formData.get('phone') as string || undefined,
+    positionApplied: formData.get('position_applied') as string || undefined,
+    resumeUrl: formData.get('resume_url') as string || undefined,
+    notes: formData.get('notes') as string || undefined,
+    status: status || undefined,
+  });
 
-  if (error) return { error: error.message };
+  if (!result.success) return { error: result.error.message };
   revalidatePath('/recruiter/candidates');
   return { success: true };
 }
 
 export async function deleteCandidate(formData: FormData) {
-  const supabase = await createServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'Unauthorized' };
-
-  const { data: membership } = await supabase
-    .from('organization_members')
-    .select('role')
-    .eq('user_id', user.id)
-    .single();
-
-  if (!membership || membership.role !== 'recruiter') return { error: 'Unauthorized' };
+  await requireRole('recruiter');
 
   const id = formData.get('id') as string;
   if (!id) return { error: 'Candidate ID is required' };
 
-  const { error } = await supabase
-    .from('candidates')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', id);
+  const result = await candidateService.deleteCandidate(id);
+  if (!result.success) return { error: result.error.message };
 
-  if (error) return { error: error.message };
   revalidatePath('/recruiter/candidates');
   revalidatePath('/recruiter');
   return { success: true };
 }
 
 export async function updatePosition(formData: FormData) {
-  const supabase = await createServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'Unauthorized' };
-
-  const { data: membership } = await supabase
-    .from('organization_members')
-    .select('organization_id, role')
-    .eq('user_id', user.id)
-    .single();
-
-  if (!membership || (membership.role !== 'recruiter' && membership.role !== 'organization_admin'))
-    return { error: 'Unauthorized' };
+  await requireRole(['recruiter', 'organization_admin']);
 
   const id = formData.get('id') as string;
   if (!id) return { error: 'Position ID is required' };
 
   const skillsRaw = formData.get('skills') as string || null;
-  const skills = skillsRaw ? skillsRaw.split(',').map(s => s.trim()).filter(Boolean) : null;
-  const status = formData.get('status') as PositionStatus | null;
-  if (status && !['open', 'closed', 'on-hold', 'filled'].includes(status)) {
-    return { error: 'Invalid status' };
+  const skills = skillsRaw ? skillsRaw.split(',').map(s => s.trim()).filter(Boolean) : undefined;
+  const status = formData.get('status') as string | null;
+
+  if (status) {
+    const parsed = positionStatusSchema.safeParse(status);
+    if (!parsed.success) return { error: 'Invalid status' };
   }
 
-  const { error } = await supabase
-    .from('positions')
-    .update({
-      title: formData.get('title') as string,
-      department: formData.get('department') as string,
-      experience_required: formData.get('experience_required') as string || null,
-      description: formData.get('description') as string || null,
-      employment_type: formData.get('employment_type') as string || null,
-      location: formData.get('location') as string || null,
-      skills,
-      ...(status ? { status } : {}),
-    })
-    .eq('id', id);
+  const result = await positionService.updatePosition(id, {
+    title: formData.get('title') as string,
+    department: formData.get('department') as string,
+    experienceRequired: formData.get('experience_required') as string || undefined,
+    description: formData.get('description') as string || undefined,
+    employmentType: formData.get('employment_type') as string || undefined,
+    location: formData.get('location') as string || undefined,
+    skills,
+    status: status || undefined,
+  });
 
-  if (error) return { error: error.message };
+  if (!result.success) return { error: result.error.message };
   revalidatePath('/recruiter/positions');
   return { success: true };
 }
 
 export async function deletePosition(formData: FormData) {
-  const supabase = await createServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'Unauthorized' };
-
-  const { data: membership } = await supabase
-    .from('organization_members')
-    .select('role')
-    .eq('user_id', user.id)
-    .single();
-
-  if (!membership || (membership.role !== 'recruiter' && membership.role !== 'organization_admin'))
-    return { error: 'Unauthorized' };
+  await requireRole(['recruiter', 'organization_admin']);
 
   const id = formData.get('id') as string;
   if (!id) return { error: 'Position ID is required' };
 
-  const { data: activeInterviews, error: checkError } = await supabase
-    .from('interviews')
-    .select('id')
-    .eq('position_id', id)
-    .in('status', ['pending', 'scheduled', 'confirmed'])
-    .limit(1);
+  const result = await positionService.deletePosition(id);
+  if (!result.success) return { error: result.error.message };
 
-  if (checkError) return { error: checkError.message };
-
-  if (activeInterviews && activeInterviews.length > 0) {
-    return { error: 'Cannot delete position with active interviews. Please close the position instead.' };
-  }
-
-  const { error } = await supabase
-    .from('positions')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', id);
-
-  if (error) return { error: error.message };
   revalidatePath('/recruiter/positions');
   revalidatePath('/admin/positions');
   return { success: true };
 }
 
 export async function bulkDeleteCandidates(formData: FormData) {
-  const supabase = await createServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'Unauthorized' };
-
-  const { data: membership } = await supabase
-    .from('organization_members')
-    .select('role')
-    .eq('user_id', user.id)
-    .single();
-
-  if (!membership || (membership.role !== 'recruiter' && membership.role !== 'organization_admin'))
-    return { error: 'Unauthorized' };
+  await requireRole(['recruiter', 'organization_admin']);
 
   const idsRaw = formData.get('ids') as string;
   if (!idsRaw) return { error: 'No candidate IDs provided' };
 
   const ids = idsRaw.split(',').map(s => s.trim()).filter(Boolean);
-
   if (ids.length === 0) return { error: 'No candidate IDs provided' };
 
-  const { error } = await supabase
-    .from('candidates')
-    .update({ deleted_at: new Date().toISOString() })
-    .in('id', ids);
+  const result = await candidateService.bulkDeleteCandidates(ids);
+  if (!result.success) return { error: result.error.message };
 
-  if (error) return { error: error.message };
   revalidatePath('/recruiter/candidates');
   return { success: true };
 }
