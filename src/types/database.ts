@@ -16,7 +16,7 @@ export type EmploymentType = 'full-time' | 'part-time' | 'contract' | 'internshi
 export type MeetingProvider = 'google_meet' | 'zoom' | 'microsoft_teams' | 'custom';
 export type AvailabilityStatus = 'available' | 'booked' | 'blocked';
 export type FeedbackRecommendation = 'hire' | 'maybe' | 'reject';
-export type NotificationType = 'candidate_created' | 'interview_scheduled' | 'interview_rescheduled' | 'interview_cancelled' | 'reminder_24h' | 'reminder_1h';
+export type NotificationType = 'candidate_created' | 'interview_scheduled' | 'interview_rescheduled' | 'interview_cancelled' | 'reminder_24h' | 'reminder_1h' | 'resume_parsed' | 'resume_parsing_failed';
 
 // ----- TABLES -----
 
@@ -83,6 +83,10 @@ export interface DbCandidate {
   referred_by: string | null;
   preferred_timezone: string | null;
   tags: Json;
+  summary: Json;
+  linkedin_url: string | null;
+  github_url: string | null;
+  portfolio_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -203,6 +207,13 @@ export interface DbGoogleCalendarToken {
   calendar_email: string;
   created_at: string;
   updated_at: string;
+  last_sync_at: string | null;
+  sync_status: string | null;
+  sync_error: string | null;
+  scopes: string[] | null;
+  calendar_id: string | null;
+  calendar_name: string | null;
+  calendar_timezone: string | null;
 }
 
 export interface DbNotification {
@@ -263,6 +274,8 @@ export interface DbCandidateSkill {
   years_experience: number | null;
   is_verified: boolean;
   source: string | null;
+  confidence_score: number | null;
+  extracted_data_source: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -280,6 +293,8 @@ export interface DbCandidateExperience {
   description: string | null;
   achievements: Json;
   skills_used: string[] | null;
+  confidence_score: number | null;
+  extracted_data_source: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -296,6 +311,8 @@ export interface DbCandidateEducation {
   is_current: boolean;
   grade: string | null;
   activities: string | null;
+  confidence_score: number | null;
+  extracted_data_source: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -311,6 +328,8 @@ export interface DbCandidateProject {
   start_date: string | null;
   end_date: string | null;
   is_current: boolean;
+  confidence_score: number | null;
+  extracted_data_source: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -325,6 +344,8 @@ export interface DbCandidateCertification {
   expiry_date: string | null;
   credential_id: string | null;
   credential_url: string | null;
+  confidence_score: number | null;
+  extracted_data_source: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -366,6 +387,21 @@ export interface DbCandidateStatusHistory {
   created_at: string;
 }
 
+export interface DbResumeParsingHistory {
+  id: string;
+  resume_id: string;
+  candidate_id: string;
+  organization_id: string;
+  parse_version: string;
+  status: 'processing' | 'completed' | 'failed';
+  success: boolean;
+  error_message: string | null;
+  parse_duration_ms: number | null;
+  extracted_skills_count: number;
+  metadata: Json;
+  created_at: string;
+}
+
 // ----- DATABASE (for supabase-js type inference) -----
 export interface Database {
   public: {
@@ -374,7 +410,7 @@ export interface Database {
       profiles: { Row: DbProfile; Insert: Omit<DbProfile, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbProfile, 'id'>> };
       organization_members: { Row: DbOrganizationMember; Insert: Omit<DbOrganizationMember, 'id' | 'created_at'>; Update: Partial<Omit<DbOrganizationMember, 'id'>> };
       invitations: { Row: DbInvitation; Insert: Omit<DbInvitation, 'id' | 'token' | 'expires_at' | 'accepted_at' | 'status' | 'revoked_at' | 'created_at'>; Update: Partial<Omit<DbInvitation, 'id'>> };
-      candidates: { Row: DbCandidate; Insert: Omit<DbCandidate, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbCandidate, 'id'>> };
+      candidates: { Row: DbCandidate; Insert: Omit<DbCandidate, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbCandidate, 'id' | 'summary'>> };
       positions: { Row: DbPosition; Insert: Omit<DbPosition, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbPosition, 'id'>> };
       availability_slots: { Row: DbAvailabilitySlot; Insert: Omit<DbAvailabilitySlot, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbAvailabilitySlot, 'id'>> };
       interviewer_availability: { Row: DbInterviewerAvailability; Insert: Omit<DbInterviewerAvailability, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbInterviewerAvailability, 'id'>> };
@@ -396,6 +432,7 @@ export interface Database {
       candidate_documents: { Row: DbCandidateDocument; Insert: Omit<DbCandidateDocument, 'id' | 'created_at'>; Update: Partial<Omit<DbCandidateDocument, 'id'>> };
       candidate_notes: { Row: DbCandidateNote; Insert: Omit<DbCandidateNote, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbCandidateNote, 'id'>> };
       candidate_status_history: { Row: DbCandidateStatusHistory; Insert: Omit<DbCandidateStatusHistory, 'id' | 'created_at'>; Update: Partial<Omit<DbCandidateStatusHistory, 'id'>> };
+      resume_parsing_history: { Row: DbResumeParsingHistory; Insert: Omit<DbResumeParsingHistory, 'id' | 'created_at'>; Update: Partial<Omit<DbResumeParsingHistory, 'id'>> };
     };
     Functions: {
       get_user_organization_ids: { Args: Record<string, never>; Returns: string[] };

@@ -137,3 +137,81 @@ export async function updateMemberRole(formData: FormData) {
   revalidatePath('/admin/users');
   return { success: true };
 }
+
+export async function refreshConnectionStatus(profileId: string) {
+  await requireRole('organization_admin');
+
+  try {
+    const { getInterviewerTokens, checkCalendarHealth, updateCalendarSyncStatus } = await import('@/lib/services/calendar.service');
+
+    const tokens = await getInterviewerTokens(profileId);
+    if (!tokens) {
+      await updateCalendarSyncStatus(profileId, 'error', 'No tokens found');
+      return { success: false, error: 'No calendar connection found' };
+    }
+
+    const health = await checkCalendarHealth(
+      tokens.accessToken,
+      tokens.refreshToken,
+      tokens.calendarEmail,
+    );
+
+    await updateCalendarSyncStatus(
+      profileId,
+      health.healthy ? 'synced' : 'error',
+      health.healthy ? undefined : health.message,
+    );
+
+    revalidatePath('/admin');
+    return { success: true, healthy: health.healthy, message: health.message };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Refresh failed';
+    return { success: false, error: message };
+  }
+}
+
+export async function requestReconnection(profileId: string) {
+  const ctx = await requireRole('organization_admin');
+
+  const admin = (await import('@/lib/supabase/admin')).createAdmin();
+
+  const { data: token } = await admin
+    .from('google_calendar_tokens')
+    .select('profile_id')
+    .eq('profile_id', profileId)
+    .maybeSingle();
+
+  if (!token) return { success: false, error: 'User has no calendar connection' };
+
+  const { data: profile } = await admin
+    .from('profiles')
+    .select('full_name, email, user_id')
+    .eq('id', profileId)
+    .single();
+
+  if (!profile) return { success: false, error: 'Profile not found' };
+
+  const { data: org } = await admin
+    .from('organizations')
+    .select('name')
+    .eq('id', ctx.user.organizationId)
+    .single();
+
+  const orgName = org?.name ?? 'Your organization';
+
+  const notification = {
+    organization_id: ctx.user.organizationId,
+    recipient_id: profileId,
+    type: 'interview_scheduled' as const,
+    title: 'Calendar Reconnection Required',
+    message: `Admin of ${orgName} has requested that you reconnect your Google Calendar. Please visit your Calendar settings to reconnect.`,
+  };
+
+  const { error: notifError } = await admin.from('notifications').insert(notification);
+  if (notifError) {
+    return { success: false, error: notifError.message };
+  }
+
+  revalidatePath('/admin');
+  return { success: true };
+}

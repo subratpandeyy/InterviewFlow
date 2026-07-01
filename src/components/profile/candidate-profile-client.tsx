@@ -65,6 +65,7 @@ import { DocumentsSection } from './sections/profile-documents';
 import { NotesSection } from './sections/profile-notes';
 import { InterviewsSection } from './sections/profile-interviews';
 import { FeedbackSection } from './sections/profile-feedback';
+import { ResumeIntelligence } from './sections/profile-resume-intelligence';
 import * as profileActions from '@/lib/actions/candidate-profile';
 import type { CandidateProfileData } from '@/lib/services/candidate-profile.service';
 
@@ -275,6 +276,18 @@ export function CandidateProfileClient({
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Target className="h-3.5 w-3.5 shrink-0" />
                       <span>{candidate.position_applied}</span>
+                    </div>
+                  )}
+                  {(candidate as any).linkedin_url && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                      <a href={(candidate as any).linkedin_url} target="_blank" rel="noopener noreferrer" className="truncate hover:text-foreground">LinkedIn</a>
+                    </div>
+                  )}
+                  {(candidate as any).github_url && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                      <a href={(candidate as any).github_url} target="_blank" rel="noopener noreferrer" className="truncate hover:text-foreground">GitHub</a>
                     </div>
                   )}
                 </div>
@@ -725,76 +738,92 @@ function ResumeTab({
   uploading: boolean;
 }) {
   const latestResume = resumes[0];
+  const router = useRouter();
+
+  const handleRefresh = useCallback(() => {
+    router.refresh();
+  }, [router]);
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Resume</CardTitle>
-            <CardDescription>Upload and manage candidate resumes</CardDescription>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Resume</CardTitle>
+              <CardDescription>Upload and manage candidate resumes</CardDescription>
+            </div>
+            <Button onClick={onUpload} disabled={uploading} size="sm">
+              {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+              {uploading ? 'Uploading...' : latestResume ? 'Replace Resume' : 'Upload Resume'}
+            </Button>
           </div>
-          <Button onClick={onUpload} disabled={uploading} size="sm">
-            {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-            {uploading ? 'Uploading...' : latestResume ? 'Replace Resume' : 'Upload Resume'}
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {latestResume ? (
-          <div className="space-y-4">
-            <div className="flex items-center gap-4 p-4 rounded-lg border border-border bg-muted/30">
-              <div className="w-12 h-14 rounded-lg bg-accent/10 flex items-center justify-center">
-                <FileText className="h-6 w-6 text-accent" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">
-                  Resume ({latestResume.file_type?.split('/').pop()?.toUpperCase() || 'PDF'})
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Uploaded {formatDate(latestResume.created_at)}
-                </p>
-                {latestResume.parsing_status && (
-                  <Badge variant={latestResume.parsing_status === 'completed' ? 'success' : latestResume.parsing_status === 'failed' ? 'destructive' : 'secondary'} className="mt-1 text-[10px]">
-                    {latestResume.parsing_status}
-                  </Badge>
+        </CardHeader>
+        <CardContent>
+          {latestResume ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 p-4 rounded-lg border border-border bg-muted/30">
+                <div className="w-12 h-14 rounded-lg bg-accent/10 flex items-center justify-center">
+                  <FileText className="h-6 w-6 text-accent" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">
+                    Resume ({latestResume.file_type?.split('/').pop()?.toUpperCase() || 'PDF'})
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Uploaded {formatDate(latestResume.created_at)}
+                  </p>
+                  {latestResume.parsing_status && (
+                    <Badge variant={latestResume.parsing_status === 'completed' ? 'success' : latestResume.parsing_status === 'failed' ? 'destructive' : 'secondary'} className="mt-1 text-[10px]">
+                      {latestResume.parsing_status === 'processing' && <Loader2 className="h-2.5 w-2.5 mr-1 animate-spin" />}
+                      {latestResume.parsing_status}
+                    </Badge>
+                  )}
+                </div>
+                {latestResume.file_url && (
+                  <a
+                    href={latestResume.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-7 items-center justify-center rounded-lg border border-border bg-background px-2.5 text-[0.8rem] font-medium text-foreground hover:bg-muted hover:text-foreground transition-colors gap-1"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Download
+                  </a>
                 )}
               </div>
               {latestResume.file_url && (
-                <a
-                  href={latestResume.file_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-7 items-center justify-center rounded-lg border border-border bg-background px-2.5 text-[0.8rem] font-medium text-foreground hover:bg-muted hover:text-foreground transition-colors gap-1"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Download
-                </a>
+                <iframe
+                  src={latestResume.file_url}
+                  className="w-full h-[600px] rounded-lg border border-border"
+                  title="Resume Preview"
+                />
               )}
             </div>
-            {latestResume.file_url && (
-              <iframe
-                src={latestResume.file_url}
-                className="w-full h-[600px] rounded-lg border border-border"
-                title="Resume Preview"
-              />
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-              <FileText className="h-8 w-8 text-muted-foreground/40" />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                <FileText className="h-8 w-8 text-muted-foreground/40" />
+              </div>
+              <h3 className="text-sm font-medium text-foreground mb-1">No resume uploaded</h3>
+              <p className="text-sm text-muted-foreground mb-4">Upload a resume to get started</p>
+              <Button onClick={onUpload} disabled={uploading}>
+                {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+                Upload Resume
+              </Button>
             </div>
-            <h3 className="text-sm font-medium text-foreground mb-1">No resume uploaded</h3>
-            <p className="text-sm text-muted-foreground mb-4">Upload a resume to get started</p>
-            <Button onClick={onUpload} disabled={uploading}>
-              {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-              Upload Resume
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
+
+      {latestResume && (
+        <ResumeIntelligence
+          resume={latestResume}
+          candidateId={candidateId}
+          onRefresh={handleRefresh}
+        />
+      )}
+    </div>
   );
 }
 

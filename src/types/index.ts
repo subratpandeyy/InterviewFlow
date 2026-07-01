@@ -37,5 +37,6 @@ export type {
   DbCandidateDocument as CandidateDocument,
   DbCandidateNote as CandidateNote,
   DbCandidateStatusHistory as CandidateStatusHistory,
+  DbResumeParsingHistory as ResumeParsingHistory,
   Database,
 } from './database';

@@ -438,7 +438,7 @@ export async function uploadResume(
   candidateId: string,
   organizationId: string,
   file: File,
-): Promise<ActionResult<{ file_url: string }>> {
+): Promise<ActionResult<{ file_url: string; resume_id: string }>> {
   const admin = createAdmin();
   const ext = file.name.split('.').pop() || 'pdf';
   const filePath = `${organizationId}/${candidateId}/resume.${ext}`;
@@ -470,7 +470,41 @@ export async function uploadResume(
 
   if (dbError) return failure('DB_FAILED', dbError.message);
 
-  return success({ file_url: urlData.publicUrl });
+  return success({ file_url: urlData.publicUrl, resume_id: resume.id });
+}
+
+export async function queueResumeParsing(resumeId: string): Promise<ActionResult<void>> {
+  const admin = createAdmin();
+  try {
+    const origin = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const response = await fetch(`${origin}/api/resume/parse`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resumeId }),
+    });
+    if (!response.ok) {
+      const err = await response.json();
+      return failure('PARSE_QUEUE_FAILED', err.error || 'Failed to queue parsing');
+    }
+    return success(undefined);
+  } catch {
+    return failure('PARSE_QUEUE_FAILED', 'Could not reach parsing service');
+  }
+}
+
+export async function getParseStatus(resumeId: string): Promise<ActionResult<{
+  parsing_status: string;
+  parsing_error: string | null;
+  parsed_at: string | null;
+}>> {
+  const admin = createAdmin();
+  const { data, error } = await admin
+    .from('resumes')
+    .select('parsing_status, parsing_error, parsed_at')
+    .eq('id', resumeId)
+    .single();
+  if (error) return failure('FETCH_FAILED', error.message);
+  return success(data);
 }
 
 export async function uploadDocument(

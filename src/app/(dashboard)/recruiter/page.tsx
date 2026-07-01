@@ -32,7 +32,20 @@ export default async function RecruiterDashboard() {
 
   const admin = createAdmin();
 
-  const [candidatesRes, interviewsRes, availabilityRes] = await Promise.all([
+  const { data: allProfiles } = await admin
+    .from('profiles')
+    .select('id, full_name')
+    .in('user_id', (await supabase
+      .from('organization_members')
+      .select('user_id')
+      .eq('organization_id', membership.organization_id)
+    ).data?.map((m) => m.user_id).filter(Boolean) ?? []);
+
+  const profileById = Object.fromEntries(
+    (allProfiles ?? []).map((p) => [p.id, p]),
+  );
+
+  const [candidatesRes, interviewsRes] = await Promise.all([
     supabase
       .from('candidates')
       .select('*')
@@ -42,24 +55,15 @@ export default async function RecruiterDashboard() {
       .limit(10),
     supabase
       .from('interviews')
-      .select('*, candidate:candidates(*), position:positions(*)')
+      .select('*, candidate:candidates(*), position:positions(*), interviewer:profiles!interviewer_id(full_name)')
       .eq('organization_id', membership.organization_id)
       .is('deleted_at', null)
       .in('status', ['pending', 'scheduled'])
       .order('created_at', { ascending: false }),
-    admin
-      .from('interviewer_availability')
-      .select('*, profile:profiles!interviewer_id(full_name)')
-      .eq('status', 'available')
-      .gte('date', new Date().toISOString().split('T')[0])
-      .order('date', { ascending: true })
-      .order('start_time', { ascending: true })
-      .limit(20),
   ]);
 
   const candidates = candidatesRes.data ?? [];
   const interviews = interviewsRes.data ?? [];
-  const availability = availabilityRes.data ?? [];
 
   const upcomingInterviews = interviews.filter(i => i.status === 'scheduled');
   const today = new Date();
@@ -92,10 +96,9 @@ export default async function RecruiterDashboard() {
     hr: 'HR Round', technical: 'Technical Round', managerial: 'Managerial Round', final: 'Final Round',
   };
 
-  function formatTime(time: string) {
-    const [h, m] = time.split(':').map(Number);
-    return `${h % 12 || 12}:${m.toString().padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
-  }
+  const providerLabels: Record<string, string> = {
+    google_meet: 'Google Meet', zoom: 'Zoom', microsoft_teams: 'Teams', custom: 'Link',
+  };
 
   return (
     <div className="space-y-8">
@@ -181,17 +184,29 @@ export default async function RecruiterDashboard() {
                 <TableHeader className="sticky top-0 z-10 bg-sidebar">
                   <TableRow>
                     <TableHead>Candidate</TableHead>
+                    <TableHead>Interviewer</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Scheduled</TableHead>
+                    <TableHead>Meeting</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {upcomingInterviews.map((i) => (
                     <TableRow key={i.id} className="even:bg-muted/30">
                       <TableCell className="font-medium">{i.candidate?.full_name}</TableCell>
+                      <TableCell className="text-muted-foreground">{i.interviewer?.full_name || 'Unknown'}</TableCell>
                       <TableCell>{interviewTypeLabels[i.interview_type] || i.interview_type}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {i.scheduled_at ? new Date(i.scheduled_at).toLocaleString() : '-'}
+                      </TableCell>
+                      <TableCell>
+                        {i.meeting_link ? (
+                          <a href={i.meeting_link} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline text-sm">
+                            {providerLabels[i.meeting_provider] || 'Join'}
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">Pending</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -201,43 +216,6 @@ export default async function RecruiterDashboard() {
           </CardContent>
         </Card>
       </div>
-
-      {availability.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Interviewer Availability (Next 30 Days)</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <Table className="scrollbar-thin">
-              <TableHeader className="sticky top-0 z-10 bg-sidebar">
-                <TableRow>
-                  <TableHead>Interviewer</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Duration</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {availability.map((s) => {
-                  const prof = s.profile as { full_name: string } | undefined;
-                  const start = s.start_time;
-                  const end = s.end_time;
-                  const diff = (parseInt(end.split(':')[0]) * 60 + parseInt(end.split(':')[1])) -
-                               (parseInt(start.split(':')[0]) * 60 + parseInt(start.split(':')[1]));
-                  return (
-                    <TableRow key={s.id} className="even:bg-muted/30">
-                      <TableCell className="font-medium">{prof?.full_name || 'Unknown'}</TableCell>
-                      <TableCell>{new Date(s.date + 'T12:00:00').toLocaleDateString()}</TableCell>
-                      <TableCell>{formatTime(start)} - {formatTime(end)}</TableCell>
-                      <TableCell className="text-muted-foreground">{diff} min</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

@@ -166,6 +166,84 @@ export async function getFreeBusySlots(
   return availableSlots;
 }
 
+export async function getInterviewerAvailableSlots(
+  profileId: string,
+  lookAheadDays = 14,
+): Promise<FreeBusySlot[]> {
+  const admin = createAdmin();
+
+  const { data: weeklySlots } = await admin
+    .from('availability_slots')
+    .select('*')
+    .eq('profile_id', profileId)
+    .eq('is_available', true);
+
+  if (!weeklySlots || weeklySlots.length === 0) return [];
+
+  const candidateSlots: FreeBusySlot[] = [];
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  for (let d = 0; d < lookAheadDays; d++) {
+    const date = new Date(now);
+    date.setDate(date.getDate() + d);
+    const dayOfWeek = date.getDay();
+
+    const matching = weeklySlots.filter((s) => s.day_of_week === dayOfWeek);
+    for (const slot of matching) {
+      const dateStr = formatDate(date);
+      const [startH, startM] = slot.start_time.split(':').map(Number);
+      const [endH, endM] = slot.end_time.split(':').map(Number);
+      const startMinutes = startH * 60 + startM;
+      const endMinutes = endH * 60 + endM;
+
+      for (let m = startMinutes; m + 60 <= endMinutes; m += 60) {
+        const h = Math.floor(m / 60);
+        const min = m % 60;
+        candidateSlots.push({
+          date: dateStr,
+          startTime: `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`,
+          endTime: `${String(h).padStart(2, '0')}:${String(min + 60).padStart(2, '0')}`,
+        });
+      }
+    }
+  }
+
+  if (candidateSlots.length === 0) return [];
+
+  const tokens = await getInterviewerTokens(profileId);
+  if (!tokens) return candidateSlots;
+
+  try {
+    const calendar = getCalendarApi(tokens.accessToken, tokens.refreshToken);
+    const nowIso = new Date();
+    const endDate = new Date(nowIso);
+    endDate.setDate(endDate.getDate() + lookAheadDays);
+
+    const { data } = await calendar.freebusy.query({
+      requestBody: {
+        timeMin: nowIso.toISOString(),
+        timeMax: endDate.toISOString(),
+        items: [{ id: tokens.calendarEmail || 'primary' }],
+      },
+    });
+
+    const busyPeriods = data.calendars?.[tokens.calendarEmail || 'primary']?.busy ?? [];
+
+    return candidateSlots.filter((slot) => {
+      const slotStart = getSlotStart(slot);
+      const slotEnd = getSlotEnd(slot);
+      return !busyPeriods.some((busy) => {
+        const busyStart = new Date(busy.start!).getTime();
+        const busyEnd = new Date(busy.end!).getTime();
+        return slotStart < busyEnd && slotEnd > busyStart;
+      });
+    });
+  } catch {
+    return candidateSlots;
+  }
+}
+
 export async function createCalendarEvent(
   accessToken: string,
   refreshToken: string,

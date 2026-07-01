@@ -3,6 +3,7 @@ import { google } from 'googleapis';
 export const SCOPES = [
   'https://www.googleapis.com/auth/calendar.readonly',
   'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/userinfo.email',
 ];
 
 const REDIRECT_PATH = '/auth/google/callback';
