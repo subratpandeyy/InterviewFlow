@@ -24,10 +24,12 @@ const iconMap: Record<string, React.ReactNode> = {
   Candidates: <Users className="h-4 w-4" />,
   Scheduling: <Calendar className="h-4 w-4" />,
   Interviews: <Briefcase className="h-4 w-4" />,
+  Interviewers: <Users className="h-4 w-4" />,
   Positions: <Briefcase className="h-4 w-4" />,
   Upcoming: <Clock className="h-4 w-4" />,
   Calendar: <Calendar className="h-4 w-4" />,
   Feedback: <Star className="h-4 w-4" />,
+  Profile: <Users className="h-4 w-4" />,
   Users: <Users className="h-4 w-4" />,
   Settings: <Settings className="h-4 w-4" />,
 };

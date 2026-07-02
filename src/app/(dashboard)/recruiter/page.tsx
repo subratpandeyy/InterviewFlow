@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
-import { Users, Calendar, Clock, Briefcase, Inbox, CalendarX } from 'lucide-react';
+import { Users, Calendar, Clock, Briefcase, Inbox, CalendarX, Star, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -45,7 +45,21 @@ export default async function RecruiterDashboard() {
     (allProfiles ?? []).map((p) => [p.id, p]),
   );
 
-  const [candidatesRes, interviewsRes] = await Promise.all([
+  const { data: interviewerMembers } = await admin
+    .from('organization_members')
+    .select('user_id')
+    .eq('organization_id', membership.organization_id)
+    .eq('role', 'interviewer');
+
+  const interviewerUserIds = (interviewerMembers ?? []).map((m) => m.user_id).filter(Boolean);
+
+  const { data: interviewerProfiles } = interviewerUserIds.length > 0
+    ? await admin.from('profiles').select('id, full_name, years_of_experience').in('user_id', interviewerUserIds)
+    : { data: [] };
+
+  const interviewerProfileIds = (interviewerProfiles ?? []).map((p: any) => p.id);
+
+  const [candidatesRes, interviewsRes, metricsRes, skillsRes] = await Promise.all([
     supabase
       .from('candidates')
       .select('*')
@@ -60,10 +74,33 @@ export default async function RecruiterDashboard() {
       .is('deleted_at', null)
       .in('status', ['pending', 'scheduled'])
       .order('created_at', { ascending: false }),
+    interviewerProfileIds.length > 0
+      ? admin.from('interviewer_metrics').select('profile_id, upcoming_interviews, interviews_this_week, total_interviews').in('profile_id', interviewerProfileIds)
+      : { data: [] },
+    interviewerProfileIds.length > 0
+      ? admin.from('interviewer_skills').select('profile_id, skill_name, is_primary').in('profile_id', interviewerProfileIds)
+      : { data: [] },
   ]);
 
   const candidates = candidatesRes.data ?? [];
   const interviews = interviewsRes.data ?? [];
+  const interviewerMetricsData = metricsRes.data ?? [];
+  const interviewerSkillsData = skillsRes.data ?? [];
+
+  const metricsByProfile = Object.fromEntries(
+    (interviewerMetricsData as any[]).map((m: any) => [m.profile_id, m]),
+  );
+
+  const results = {
+    interviewers: (interviewerProfiles ?? []).map((p: any) => ({
+      profileId: p.id,
+      name: p.full_name,
+      experience: p.years_of_experience,
+      total: metricsByProfile[p.id]?.total_interviews ?? 0,
+      upcomingInterviews: metricsByProfile[p.id]?.upcoming_interviews ?? 0,
+      skills: (interviewerSkillsData as any[]).filter((s: any) => s.profile_id === p.id).map((s: any) => s.skill_name),
+    })),
+  };
 
   const upcomingInterviews = interviews.filter(i => i.status === 'scheduled');
   const today = new Date();
@@ -216,6 +253,76 @@ export default async function RecruiterDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Interviewer Insights</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-lg border border-border bg-card p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <UserCheck className="h-4 w-4 text-accent" />
+                <span className="text-xs text-muted-foreground">Available Today</span>
+              </div>
+              <p className="text-2xl font-semibold">{getAvailableInterviewersCount(results)}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="h-4 w-4 text-emerald-400" />
+                <span className="text-xs text-muted-foreground">Least Busy</span>
+              </div>
+              <p className="text-lg font-semibold truncate">{getLeastBusyInterviewer(results, profileById)}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Star className="h-4 w-4 text-amber-400" />
+                <span className="text-xs text-muted-foreground">Most Experienced</span>
+              </div>
+              <p className="text-lg font-semibold truncate">{getMostExperiencedInterviewer(results, profileById)}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar className="h-4 w-4 text-blue-400" />
+                <span className="text-xs text-muted-foreground">Upcoming Avail.</span>
+              </div>
+              <p className="text-lg font-semibold">{getUpcomingInterviewsCount(results)}</p>
+            </div>
+          </div>
+          <div className="mt-4">
+            <a href="/recruiter/interviewers" className={cn(buttonVariants({ variant: 'link' }), 'h-auto px-0 text-sm')}>
+              View interviewer directory →
+            </a>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
+
+function getAvailableInterviewersCount(data: any) {
+  if (!data?.interviewers?.length) return 0;
+  return data.interviewers.filter((i: any) => i.upcomingInterviews < 3).length;
+}
+
+function getLeastBusyInterviewer(data: any, profileById: any) {
+  if (!data?.interviewers?.length) return '-';
+  const sorted = [...data.interviewers].sort((a: any, b: any) => a.total - b.total);
+  const least = sorted[0];
+  if (!least) return '-';
+  const p = profileById[least.profileId];
+  return p?.full_name || '-';
+}
+
+function getMostExperiencedInterviewer(data: any, profileById: any) {
+  if (!data?.interviewers?.length) return '-';
+  const sorted = [...data.interviewers].sort((a: any, b: any) => (b.experience || 0) - (a.experience || 0));
+  const most = sorted[0];
+  return most?.name || '-';
+}
+
+function getUpcomingInterviewsCount(data: any) {
+  if (!data?.interviewers?.length) return 0;
+  return data.interviewers.reduce((sum: number, i: any) => sum + (i.upcomingInterviews || 0), 0);
+}
+

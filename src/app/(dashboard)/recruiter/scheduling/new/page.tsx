@@ -1,14 +1,12 @@
 import { createServer } from '@/lib/supabase/server';
 import { createAdmin } from '@/lib/supabase/admin';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { createInterview } from '@/lib/actions/recruiter';
+import { InterviewerSelector } from '@/components/recruiter/interviewer-selector';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { INTERVIEW_TYPES } from '@/lib/constants';
+import type { InterviewerSkill } from '@/types';
+
+export const dynamic = 'force-dynamic';
 
 export default async function NewSchedulingPage() {
   const supabase = await createServer();
@@ -22,31 +20,96 @@ export default async function NewSchedulingPage() {
 
   if (!membership) return null;
 
-  const { data: candidates } = await supabase
-    .from('candidates')
-    .select('*')
-    .eq('organization_id', membership.organization_id)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false });
-
-  const { data: interviewerMembers } = await supabase
-    .from('organization_members')
-    .select('user_id')
-    .eq('organization_id', membership.organization_id)
-    .eq('role', 'interviewer');
-
-  const interviewerIds = interviewerMembers?.map(m => m.user_id) ?? [];
-
   const admin = createAdmin();
-  const { data: interviewers } = interviewerIds.length > 0
-    ? await admin.from('profiles').select('*').in('user_id', interviewerIds)
-    : { data: [] };
 
-  const { data: positions } = await supabase
-    .from('positions')
-    .select('*')
-    .eq('organization_id', membership.organization_id)
-    .is('deleted_at', null);
+  const [candidatesRes, interviewerMembersRes, positionsRes] = await Promise.all([
+    supabase
+      .from('candidates')
+      .select('id, full_name, email')
+      .eq('organization_id', membership.organization_id)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('organization_members')
+      .select('user_id')
+      .eq('organization_id', membership.organization_id)
+      .eq('role', 'interviewer'),
+    supabase
+      .from('positions')
+      .select('id, title, department')
+      .eq('organization_id', membership.organization_id)
+      .is('deleted_at', null),
+  ]);
+
+  const interviewerIds = (interviewerMembersRes.data ?? []).map((m: any) => m.user_id).filter(Boolean);
+
+  const [profilesRes, skillsRes, metricsRes, tokensRes] = interviewerIds.length > 0 ? await Promise.all([
+    admin.from('profiles').select('*').in('user_id', interviewerIds),
+    admin.from('interviewer_skills').select('*').in('profile_id',
+      (await admin.from('profiles').select('id').in('user_id', interviewerIds)).data?.map((p: any) => p.id) ?? []
+    ),
+    admin.from('interviewer_metrics').select('*').in('profile_id',
+      (await admin.from('profiles').select('id').in('user_id', interviewerIds)).data?.map((p: any) => p.id) ?? []
+    ),
+    admin.from('google_calendar_tokens').select('profile_id').in('profile_id',
+      (await admin.from('profiles').select('id').in('user_id', interviewerIds)).data?.map((p: any) => p.id) ?? []
+    ),
+  ]) : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
+
+  const profiles = profilesRes.data ?? [];
+  const skills = skillsRes.data ?? [];
+  const metrics = metricsRes.data ?? [];
+  const tokens = tokensRes.data ?? [];
+
+  const profileIds = profiles.map((p: any) => p.id);
+  const metricsByProfile = Object.fromEntries(metrics.map((m: any) => [m.profile_id, m]));
+  const skillsByProfile = new Map<string, InterviewerSkill[]>();
+  for (const s of skills as InterviewerSkill[]) {
+    const existing = skillsByProfile.get(s.profile_id) ?? [];
+    existing.push(s);
+    skillsByProfile.set(s.profile_id, existing);
+  }
+  const tokenProfileIds = new Set(tokens.map((t: any) => t.profile_id));
+
+  const interviewers = profiles.map((p: any) => ({
+    id: p.id,
+    fullName: p.full_name,
+    email: p.email,
+    department: p.department ?? null,
+    roleTitle: p.role_title ?? null,
+    seniority: p.seniority ?? null,
+    timezone: p.timezone ?? null,
+    primaryExpertise: p.primary_expertise ?? null,
+    skills: (skillsByProfile.get(p.id) ?? []).map((s) => ({
+      id: s.id,
+      skillName: s.skill_name,
+      category: s.category,
+      proficiencyScale: s.proficiency_scale,
+      isPrimary: s.is_primary,
+    })),
+    metrics: metricsByProfile[p.id] ? {
+      totalInterviews: metricsByProfile[p.id].total_interviews,
+      upcomingInterviews: metricsByProfile[p.id].upcoming_interviews,
+      interviewsToday: metricsByProfile[p.id].interviews_today,
+      interviewsThisWeek: metricsByProfile[p.id].interviews_this_week,
+      averageRating: metricsByProfile[p.id].average_rating,
+    } : null,
+    isCalendarConnected: tokenProfileIds.has(p.id),
+    maxPerDay: p.max_interviews_per_day ?? 3,
+    maxPerWeek: p.max_interviews_per_week ?? 10,
+  }));
+
+  const candidates = (candidatesRes.data ?? []).map((c: any) => ({
+    id: c.id,
+    fullName: c.full_name,
+    email: c.email,
+  }));
+
+  const positions = (positionsRes.data ?? []).map((p: any) => ({
+    id: p.id,
+    title: p.title,
+    department: p.department,
+  }));
 
   return (
     <div className="space-y-6">
@@ -57,101 +120,20 @@ export default async function NewSchedulingPage() {
         <h1 className="text-3xl font-bold">Schedule Interview</h1>
       </div>
 
-      <Card className="max-w-2xl">
+      <Card>
         <CardHeader>
           <CardTitle>Interview Details</CardTitle>
           <CardDescription>
             Select the candidate, interviewer, and configure the interview.
+            Enhanced with skills, workload, and compatibility information.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form action={createInterview} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="candidate_id">Candidate</Label>
-              <select
-                id="candidate_id"
-                name="candidate_id"
-                required
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
-              >
-                <option value="">Select a candidate...</option>
-                {candidates?.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.full_name} ({c.email})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="position_id">Position</Label>
-              <select
-                id="position_id"
-                name="position_id"
-                required
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
-              >
-                <option value="">Select a position...</option>
-                {positions?.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.title} - {p.department}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="interviewer_id">Interviewer</Label>
-              <select
-                id="interviewer_id"
-                name="interviewer_id"
-                required
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
-              >
-                <option value="">Select an interviewer...</option>
-                {interviewers?.map((i) => (
-                  <option key={i.id} value={i.id}>
-                    {i.full_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="interview_type">Interview Type</Label>
-                <select
-                  id="interview_type"
-                  name="interview_type"
-                  required
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
-                >
-                  <option value="">Select type...</option>
-                  {INTERVIEW_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="duration">Duration (minutes)</Label>
-                <Input id="duration" name="duration" type="number" defaultValue={60} min={15} step={15} />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes (appears as position name for candidate)</Label>
-              <Textarea id="notes" name="notes" rows={2} placeholder="e.g. Frontend Developer - Technical Round" />
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <Button type="submit">Generate Booking Link</Button>
-              <Link href="/recruiter/scheduling">
-                <Button variant="outline" type="button">Cancel</Button>
-              </Link>
-            </div>
-          </form>
+        <CardContent className="pt-0">
+          <InterviewerSelector
+            interviewers={interviewers}
+            positions={positions}
+            candidates={candidates}
+          />
         </CardContent>
       </Card>
     </div>

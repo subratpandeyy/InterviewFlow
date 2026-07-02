@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Users, Briefcase, Calendar, UserCheck, ArrowUpRight } from 'lucide-react';
+import { Users, Briefcase, Calendar, UserCheck, ArrowUpRight, Star, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -308,7 +308,122 @@ export default async function AdminDashboard() {
         </Card>
       </div>
 
-      <CalendarConnections connections={calendarConnections} />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Interviewer Overview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-lg border border-border bg-card p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="h-4 w-4 text-accent" />
+                  <span className="text-xs text-muted-foreground">Total Interviewers</span>
+                </div>
+                <p className="text-2xl font-semibold">
+                  {allMembers?.filter((m) => m.role === 'interviewer').length ?? 0}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border bg-card p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar className="h-4 w-4 text-emerald-400" />
+                  <span className="text-xs text-muted-foreground">Connected Calendars</span>
+                </div>
+                <p className="text-2xl font-semibold">
+                  {calendarConnections.filter((c) => c.connectionStatus === 'connected').length}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border bg-card p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Star className="h-4 w-4 text-amber-400" />
+                  <span className="text-xs text-muted-foreground">Top Skill</span>
+                </div>
+                <p className="text-lg font-semibold truncate">
+                  {(await getTopSkill(admin, membership.organization_id)) || '-'}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border bg-card p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="h-4 w-4 text-blue-400" />
+                  <span className="text-xs text-muted-foreground">Avg Weekly Utilization</span>
+                </div>
+                <p className="text-2xl font-semibold">
+                  {await getAvgUtilization(admin, membership.organization_id)}%
+                </p>
+              </div>
+            </div>
+            <div className="mt-4">
+              <Link
+                href="/admin/interviewers"
+                className={cn(buttonVariants({ variant: 'link' }), 'h-auto px-0 text-sm')}
+              >
+                View all interviewers →
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
+        <CalendarConnections connections={calendarConnections} />
+      </div>
     </div>
   );
+}
+
+async function getTopSkill(admin: any, organizationId: string): Promise<string | null> {
+  const { data: interviewerMembers } = await admin
+    .from('organization_members')
+    .select('user_id')
+    .eq('organization_id', organizationId)
+    .eq('role', 'interviewer');
+  if (!interviewerMembers?.length) return null;
+
+  const { data: profiles } = await admin
+    .from('profiles')
+    .select('id')
+    .in('user_id', interviewerMembers.map((m: any) => m.user_id).filter(Boolean));
+  if (!profiles?.length) return null;
+
+  const { data: skills } = await admin
+    .from('interviewer_skills')
+    .select('skill_name')
+    .in('profile_id', profiles.map((p: any) => p.id));
+  if (!skills?.length) return null;
+
+  const counts = new Map<string, number>();
+  for (const s of skills) {
+    const name = (s.skill_name || '').toLowerCase().trim();
+    counts.set(name, (counts.get(name) || 0) + 1);
+  }
+
+  const top = Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0];
+  return top ? top[0] : null;
+}
+
+async function getAvgUtilization(admin: any, organizationId: string): Promise<number> {
+  const { data: interviewerMembers } = await admin
+    .from('organization_members')
+    .select('user_id')
+    .eq('organization_id', organizationId)
+    .eq('role', 'interviewer');
+  if (!interviewerMembers?.length) return 0;
+
+  const { data: profiles } = await admin
+    .from('profiles')
+    .select('id')
+    .in('user_id', interviewerMembers.map((m: any) => m.user_id).filter(Boolean));
+  if (!profiles?.length) return 0;
+
+  const { data: metrics } = await admin
+    .from('interviewer_metrics')
+    .select('interviews_this_week, profile_id')
+    .in('profile_id', profiles.map((p: any) => p.id));
+
+  if (!metrics?.length) return 0;
+
+  const totalUtil = metrics.reduce((sum: number, m: any) => {
+    const maxPerWeek = 10;
+    return sum + Math.min(100, ((m.interviews_this_week ?? 0) / maxPerWeek) * 100);
+  }, 0);
+
+  return Math.round(totalUtil / metrics.length);
 }

@@ -49,6 +49,7 @@ export const DASHBOARD_ROUTES: Record<string, { label: string; href: string }[]>
     { label: 'Dashboard', href: '/admin' },
     { label: 'Users', href: '/admin/users' },
     { label: 'Positions', href: '/admin/positions' },
+    { label: 'Interviewers', href: '/admin/interviewers' },
   ],
   recruiter: [
     { label: 'Dashboard', href: '/recruiter' },
@@ -56,9 +57,11 @@ export const DASHBOARD_ROUTES: Record<string, { label: string; href: string }[]>
     { label: 'Positions', href: '/recruiter/positions' },
     { label: 'Scheduling', href: '/recruiter/scheduling' },
     { label: 'Interviews', href: '/recruiter/interviews' },
+    { label: 'Interviewers', href: '/recruiter/interviewers' },
   ],
   interviewer: [
     { label: 'Dashboard', href: '/interviewer' },
+    { label: 'Profile', href: '/interviewer/profile' },
     { label: 'Upcoming', href: '/interviewer/upcoming' },
     { label: 'Calendar', href: '/interviewer/calendar' },
     { label: 'Feedback', href: '/interviewer/feedback' },
@@ -129,3 +132,79 @@ export const DAYS_OF_WEEK = [
   { value: 5, label: 'Friday' },
   { value: 6, label: 'Saturday' },
 ];
+
+export const INTERVIEW_TYPE_OPTIONS = [
+  { value: 'Technical', label: 'Technical' },
+  { value: 'HR', label: 'HR' },
+  { value: 'System Design', label: 'System Design' },
+  { value: 'Coding', label: 'Coding' },
+  { value: 'Behavioral', label: 'Behavioral' },
+  { value: 'Managerial', label: 'Managerial' },
+  { value: 'Leadership', label: 'Leadership' },
+  { value: 'Final Round', label: 'Final Round' },
+] as const;
+
+export const SKILL_CATEGORIES = [
+  { value: 'Programming Languages', label: 'Programming Languages' },
+  { value: 'Frontend', label: 'Frontend' },
+  { value: 'Backend', label: 'Backend' },
+  { value: 'Mobile', label: 'Mobile' },
+  { value: 'DevOps', label: 'DevOps' },
+  { value: 'Cloud', label: 'Cloud' },
+  { value: 'Databases', label: 'Databases' },
+  { value: 'AI/ML', label: 'AI/ML' },
+  { value: 'Testing', label: 'Testing' },
+  { value: 'Security', label: 'Security' },
+  { value: 'System Design', label: 'System Design' },
+  { value: 'Soft Skills', label: 'Soft Skills' },
+] as const;
+
+export const SENIORITY_LEVELS = [
+  { value: 'junior', label: 'Junior' },
+  { value: 'mid', label: 'Mid-Level' },
+  { value: 'senior', label: 'Senior' },
+  { value: 'lead', label: 'Lead' },
+  { value: 'principal', label: 'Principal' },
+  { value: 'staff', label: 'Staff' },
+  { value: 'director', label: 'Director' },
+  { value: 'vp', label: 'VP' },
+  { value: 'c_level', label: 'C-Level' },
+] as const;
+
+export const SKILL_IMPORTANCE = [
+  { value: 'required', label: 'Required' },
+  { value: 'preferred', label: 'Preferred' },
+] as const;
+
+export const PROFICIENCY_SCALE = [
+  { value: 1, label: '1 - Familiar' },
+  { value: 2, label: '2 - Working Knowledge' },
+  { value: 3, label: '3 - Proficient' },
+  { value: 4, label: '4 - Advanced' },
+  { value: 5, label: '5 - Expert' },
+] as const;
+
+export const TIMEZONES = [
+  'UTC',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'Europe/London',
+  'Europe/Paris',
+  'Europe/Berlin',
+  'Europe/Moscow',
+  'Asia/Dubai',
+  'Asia/Kolkata',
+  'Asia/Shanghai',
+  'Asia/Tokyo',
+  'Asia/Singapore',
+  'Australia/Sydney',
+  'Pacific/Auckland',
+] as const;
+
+export const LANGUAGES = [
+  'English', 'Spanish', 'French', 'German', 'Mandarin', 'Japanese',
+  'Korean', 'Portuguese', 'Russian', 'Arabic', 'Hindi', 'Italian',
+  'Dutch', 'Turkish', 'Vietnamese', 'Thai', 'Swedish', 'Polish',
+] as const;

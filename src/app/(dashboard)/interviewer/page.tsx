@@ -1,4 +1,6 @@
 import { createServer } from '@/lib/supabase/server';
+import { createAdmin } from '@/lib/supabase/admin';
+import * as metricsService from '@/lib/services/interviewer-metrics.service';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -9,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Calendar, Clock, Star, Video, CheckCircle2, XCircle } from 'lucide-react';
+import { Calendar, Clock, Star, Video, CheckCircle2, XCircle, BarChart3, UserCheck, Briefcase } from 'lucide-react';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -21,18 +23,26 @@ export default async function InterviewerDashboard() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id')
+    .select('id, full_name, max_interviews_per_day, max_interviews_per_week, timezone, primary_expertise')
     .eq('user_id', user.id)
     .single();
 
   if (!profile) return null;
+
+  const { data: membership } = await supabase
+    .from('organization_members')
+    .select('organization_id')
+    .eq('user_id', user.id)
+    .single();
+
+  const admin = createAdmin();
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const [interviewsRes, feedbacksRes, calendarTokenRes] = await Promise.all([
+  const [interviewsRes, feedbacksRes, calendarTokenRes, skillsRes, metricsRes] = await Promise.all([
     supabase
       .from('interviews')
       .select('*, candidate:candidates(*), position:positions(*)')
@@ -44,7 +54,17 @@ export default async function InterviewerDashboard() {
       .eq('interviewer_id', profile.id),
     supabase
       .from('google_calendar_tokens')
-      .select('calendar_email')
+      .select('calendar_email, calendar_name')
+      .eq('profile_id', profile.id)
+      .maybeSingle(),
+    admin
+      .from('interviewer_skills')
+      .select('*')
+      .eq('profile_id', profile.id)
+      .order('is_primary', { ascending: false }),
+    admin
+      .from('interviewer_metrics')
+      .select('*')
       .eq('profile_id', profile.id)
       .maybeSingle(),
   ]);
@@ -52,6 +72,15 @@ export default async function InterviewerDashboard() {
   const interviews = interviewsRes.data ?? [];
   const feedbacks = feedbacksRes.data ?? [];
   const isCalendarConnected = !!calendarTokenRes.data;
+  const skills = skillsRes.data ?? [];
+  let metrics = metricsRes.data as any;
+
+  if (membership && (!metrics || metrics.total_interviews === 0)) {
+    const recalc = await metricsService.recalculateMetrics(profile.id, membership.organization_id);
+    if (recalc.success) {
+      metrics = recalc.data;
+    }
+  }
 
   const upcomingInterviews = interviews.filter(i => i.status === 'scheduled' && i.scheduled_at && new Date(i.scheduled_at) >= today);
   const interviewsToday = interviews.filter(i => i.status === 'scheduled' && i.scheduled_at && new Date(i.scheduled_at) >= today && new Date(i.scheduled_at) < tomorrow);
@@ -103,6 +132,63 @@ export default async function InterviewerDashboard() {
           </Card>
         ))}
       </div>
+
+      {metrics && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">This Week</CardTitle>
+              <BarChart3 className="size-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{metrics.upcoming_interviews ?? 0}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {metrics.interviews_this_week ?? 0} this week
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Capacity Today</CardTitle>
+              <UserCheck className="size-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">
+                {metrics.interviews_today ?? 0}/{profile.max_interviews_per_day ?? 3}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">interviews used today</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Performance</CardTitle>
+              <Star className="size-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">
+                {metrics.average_rating ? (Number(metrics.average_rating)).toFixed(1) : '-'}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">avg rating · {metrics.completed_interviews ?? 0} total</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Skills Profile</CardTitle>
+              <Briefcase className="size-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{skills.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {skills.filter(s => s.is_primary).length} primary ·{' '}
+                <Link href="/interviewer/profile" className="text-accent hover:underline">manage →</Link>
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <Card>
         <CardHeader>

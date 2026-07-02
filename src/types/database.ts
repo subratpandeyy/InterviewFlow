@@ -17,6 +17,8 @@ export type MeetingProvider = 'google_meet' | 'zoom' | 'microsoft_teams' | 'cust
 export type AvailabilityStatus = 'available' | 'booked' | 'blocked';
 export type FeedbackRecommendation = 'hire' | 'maybe' | 'reject';
 export type NotificationType = 'candidate_created' | 'interview_scheduled' | 'interview_rescheduled' | 'interview_cancelled' | 'reminder_24h' | 'reminder_1h' | 'resume_parsed' | 'resume_parsing_failed';
+export type SkillImportance = 'required' | 'preferred';
+export type ActivityType = 'skill_added' | 'skill_updated' | 'skill_removed' | 'department_changed' | 'availability_changed' | 'calendar_connected' | 'calendar_disconnected' | 'interview_completed' | 'profile_updated' | 'expertise_changed';
 
 // ----- TABLES -----
 
@@ -34,6 +36,21 @@ export interface DbProfile {
   full_name: string;
   email: string;
   avatar_url: string | null;
+  department: string | null;
+  role_title: string | null;
+  timezone: string | null;
+  seniority: string | null;
+  bio: string | null;
+  phone: string | null;
+  weekly_interview_limit: number | null;
+  years_of_experience: number | null;
+  primary_expertise: string | null;
+  secondary_expertise: string | null;
+  preferred_interview_types: Json;
+  languages_spoken: Json;
+  max_interviews_per_day: number | null;
+  max_interviews_per_week: number | null;
+  working_hours: Json;
   created_at: string;
   updated_at: string;
 }
@@ -402,6 +419,115 @@ export interface DbResumeParsingHistory {
   created_at: string;
 }
 
+export interface DbInterviewerSkill {
+  id: string;
+  profile_id: string;
+  organization_id: string;
+  skill_name: string;
+  skill_name_normalized: string | null;
+  category: string | null;
+  proficiency: 'beginner' | 'intermediate' | 'advanced' | 'expert' | null;
+  proficiency_scale: number | null;
+  years_experience: number | null;
+  last_used: string | null;
+  is_core: boolean;
+  is_primary: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbInterviewerMetric {
+  id: string;
+  profile_id: string;
+  organization_id: string;
+  total_interviews: number;
+  completed_interviews: number;
+  average_rating: number | null;
+  feedback_completion_rate: number | null;
+  on_time_percentage: number | null;
+  period_start: string | null;
+  period_end: string | null;
+  average_candidate_rating: number | null;
+  average_feedback_submission_time: number | null;
+  interview_completion_rate: number | null;
+  no_show_rate: number | null;
+  reschedule_rate: number | null;
+  average_interview_score: number | null;
+  total_cancelled_interviews: number;
+  total_no_show_interviews: number;
+  total_rescheduled_interviews: number;
+  interviews_today: number;
+  interviews_this_week: number;
+  interviews_this_month: number;
+  upcoming_interviews: number;
+  average_duration_minutes: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbInterviewerDepartment {
+  id: string;
+  profile_id: string;
+  organization_id: string;
+  department: string;
+  is_primary: boolean;
+  created_at: string;
+}
+
+export interface DbSkillCategory {
+  id: string;
+  organization_id: string | null;
+  name: string;
+  description: string | null;
+  is_system: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbPositionSkill {
+  id: string;
+  position_id: string;
+  organization_id: string;
+  skill_name: string;
+  skill_name_normalized: string | null;
+  importance: SkillImportance;
+  proficiency_required: number | null;
+  years_experience_required: number | null;
+  category: string | null;
+  created_at: string;
+}
+
+export interface DbActivityLog {
+  id: string;
+  organization_id: string;
+  profile_id: string;
+  activity_type: ActivityType;
+  description: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  metadata: Json;
+  created_at: string;
+}
+
+// Application-level types for matching
+export interface SkillMatch {
+  skillName: string;
+  category: string | null;
+  requiredProficiency: number | null;
+  interviewerProficiency: number | null;
+  match: 'full' | 'partial' | 'missing';
+  yearsExperience: number | null;
+  yearsRequired: number | null;
+}
+
+export interface CompatibilityScore {
+  overall: number;
+  skillMatches: SkillMatch[];
+  experienceMatch: number;
+  availabilityMatch: boolean;
+  typeMatch: boolean;
+}
+
 // ----- DATABASE (for supabase-js type inference) -----
 export interface Database {
   public: {
@@ -433,6 +559,12 @@ export interface Database {
       candidate_notes: { Row: DbCandidateNote; Insert: Omit<DbCandidateNote, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbCandidateNote, 'id'>> };
       candidate_status_history: { Row: DbCandidateStatusHistory; Insert: Omit<DbCandidateStatusHistory, 'id' | 'created_at'>; Update: Partial<Omit<DbCandidateStatusHistory, 'id'>> };
       resume_parsing_history: { Row: DbResumeParsingHistory; Insert: Omit<DbResumeParsingHistory, 'id' | 'created_at'>; Update: Partial<Omit<DbResumeParsingHistory, 'id'>> };
+      interviewer_skills: { Row: DbInterviewerSkill; Insert: Omit<DbInterviewerSkill, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbInterviewerSkill, 'id'>> };
+      interviewer_metrics: { Row: DbInterviewerMetric; Insert: Omit<DbInterviewerMetric, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbInterviewerMetric, 'id'>> };
+      interviewer_departments: { Row: DbInterviewerDepartment; Insert: Omit<DbInterviewerDepartment, 'id' | 'created_at'>; Update: Partial<Omit<DbInterviewerDepartment, 'id'>> };
+      skill_categories: { Row: DbSkillCategory; Insert: Omit<DbSkillCategory, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<DbSkillCategory, 'id'>> };
+      position_skills: { Row: DbPositionSkill; Insert: Omit<DbPositionSkill, 'id' | 'created_at'>; Update: Partial<Omit<DbPositionSkill, 'id'>> };
+      activity_log: { Row: DbActivityLog; Insert: Omit<DbActivityLog, 'id' | 'created_at'>; Update: Partial<Omit<DbActivityLog, 'id'>> };
     };
     Functions: {
       get_user_organization_ids: { Args: Record<string, never>; Returns: string[] };
